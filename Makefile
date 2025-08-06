@@ -18,6 +18,9 @@ lint: ## Check code with linters
 	uv run ruff format .
 	uv run mypy .
 
+security: ## Run security checks
+	uv run bandit -r fastapi_redis_utils -f json -o bandit-report.json
+
 format: ## Format code
 	uv run ruff format .
 	uv run ruff check --fix .
@@ -42,6 +45,7 @@ build: ## Build package
 check: ## Full pre-commit check
 	uv run ruff check .
 	uv run mypy fastapi_redis_utils tests/
+	uv run bandit -r fastapi_redis_utils -f json -o bandit-report.json || true
 	uv run pytest
 
 example-fastapi: ## Run FastAPI example

@@ -1,5 +1,18 @@
 # FastAPI Redis Utils
 
+[![CI/CD](https://github.com/serafinovsky/fastapi-redis-utils/actions/workflows/ci.yml/badge.svg)](https://github.com/serafinovsky/fastapi-redis-utils/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/serafinovsky/fastapi-redis-utils/branch/main/graph/badge.svg)](https://codecov.io/gh/serafinovsky/fastapi-redis-utils)
+[![PyPI](https://img.shields.io/pypi/v/fastapi-redis-utils.svg)](https://pypi.org/project/fastapi-redis-utils/)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/fastapi-redis-utils.svg)](https://pypi.org/project/fastapi-redis-utils/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/3-11-0/)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/release/3-12-0/)
+[![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/release/3-13-0/)
+[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
+[![Type checked with mypy](https://img.shields.io/badge/mypy-checked-blue.svg)](http://mypy-lang.org/)
+[![Security: bandit](https://img.shields.io/badge/security-bandit-green.svg)](https://github.com/PyCQA/bandit)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/serafinovsky/fastapi-redis-utils)](https://github.com/serafinovsky/fastapi-redis-utils/releases)
+
 Async Redis manager with FastAPI integration, connection pooling and retry mechanism.
 
 ## Features

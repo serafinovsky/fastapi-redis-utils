@@ -4,7 +4,7 @@ FastAPI Redis Utils
 Async Redis manager with FastAPI integration, connection pooling and retry mechanism.
 """
 
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 
 from .dependency import create_redis_client_dependencies
 from .manager import RedisManager

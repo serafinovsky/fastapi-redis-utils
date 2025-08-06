@@ -160,3 +160,4 @@ cython_debug/
 .history/
 .idea/
 site/ 
+bandit-report.json

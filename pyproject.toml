@@ -9,7 +9,7 @@ description = "Async Redis manager with FastAPI integration, connection pooling 
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "Your Name", email = "your.email@example.com"},
+    {name = "Mark Serafinovsky", email = "m.serafinovsky@gmail.com"},
 ]
 keywords = ["fastapi", "redis", "async", "connection-pool", "dependency-injection", "utils"]
 classifiers = [
@@ -176,5 +176,6 @@ dev = [
     "uvicorn>=0.35.0",
     "fastapi>=0.116.1",
     "ruff>=0.12.7",
-    "fakeredis>=2.30.3"
+    "fakeredis>=2.30.3",
+    "bandit>=1.8.6"
 ]
