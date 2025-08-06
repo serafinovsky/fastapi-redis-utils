@@ -3,7 +3,6 @@
 [![CI/CD](https://github.com/serafinovsky/fastapi-redis-utils/actions/workflows/ci.yml/badge.svg)](https://github.com/serafinovsky/fastapi-redis-utils/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/serafinovsky/fastapi-redis-utils/branch/main/graph/badge.svg)](https://codecov.io/gh/serafinovsky/fastapi-redis-utils)
 [![PyPI](https://img.shields.io/pypi/v/fastapi-redis-utils.svg)](https://pypi.org/project/fastapi-redis-utils/)
-[![PyPI - Downloads](https://img.shields.io/pypi/dm/fastapi-redis-utils.svg)](https://pypi.org/project/fastapi-redis-utils/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/3-11-0/)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/release/3-12-0/)
