@@ -71,10 +71,10 @@ jobs:
         run: uv sync --dev
 
       - name: Build package
-        run: uv run build
+        run: uv build
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
+          user: __token__
           password: ${{ secrets.PYPI_API_TOKEN }}
-          skip-existing: true
