@@ -83,7 +83,7 @@ class RedisManager:
         self._is_connected = False
         if self.redis_client:
             try:
-                await self.redis_client.close()
+                await self.redis_client.aclose()
                 logger.info("Redis connection closed")
             except Exception as e:
                 logger.error(f"Error closing Redis connection: {e}")

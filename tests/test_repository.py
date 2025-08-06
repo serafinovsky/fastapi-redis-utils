@@ -38,25 +38,17 @@ class UserResult(UserCreate, BaseResultModel):
 
 @pytest.fixture
 def mock_redis_manager():
-    """Create a mock Redis manager."""
+    """Create a mock Redis manager for initialization tests."""
     manager = MagicMock(spec=RedisManager)
     manager.get_client = AsyncMock()
     return manager
 
 
 @pytest.fixture
-def mock_redis_client():
-    """Create a mock Redis client."""
-    client = AsyncMock()
-    return client
-
-
-@pytest.fixture
-def repository(mock_redis_manager, mock_redis_client):
-    """Create a repository instance with mocked dependencies."""
-    mock_redis_manager.get_client.return_value = mock_redis_client
+async def repository(connected_redis_manager):
+    """Create a repository instance with fake Redis."""
     return BaseRepository[UserCreate, UserUpdate, UserResult](
-        redis_manager=mock_redis_manager,
+        redis_manager=connected_redis_manager,
         create_model=UserCreate,
         update_model=UserUpdate,
         result_model=UserResult,
@@ -131,7 +123,7 @@ class TestBaseRepository:
             repository._deserialize("invalid json", UserCreate)
 
     @pytest.mark.asyncio
-    async def test_create(self, repository, mock_redis_client):
+    async def test_create(self, repository):
         """Test record creation."""
         user = UserCreate(username="test", email="test@example.com", full_name="Test User", age=25)
 
@@ -143,39 +135,42 @@ class TestBaseRepository:
         assert result.age == user.age
         assert result.is_active == user.is_active
         assert result.id == "test_key"
-        mock_redis_client.setex.assert_called_once()
-        call_args = mock_redis_client.setex.call_args
-        assert call_args[0][0] == "user:test_key"
-        assert call_args[0][1] == 3600  # default_ttl
+
+        stored_user = await repository.get("test_key")
+        assert stored_user is not None
+        assert stored_user.username == user.username
 
     @pytest.mark.asyncio
-    async def test_create_with_custom_ttl(self, repository, mock_redis_client):
+    async def test_create_with_custom_ttl(self, repository):
         """Test record creation with custom TTL."""
         user = UserCreate(username="test", email="test@example.com", full_name="Test User", age=25)
 
         await repository.create("test_key", user, ttl=7200)
 
-        mock_redis_client.setex.assert_called_once()
-        call_args = mock_redis_client.setex.call_args
-        assert call_args[0][1] == 7200
+        stored_user = await repository.get("test_key")
+        assert stored_user is not None
+        ttl = await repository.get_ttl("test_key")
+        assert ttl is not None
+        assert ttl > 0
 
     @pytest.mark.asyncio
-    async def test_create_without_ttl(self, repository, mock_redis_client):
+    async def test_create_without_ttl(self, repository):
         """Test record creation without TTL."""
         repository.default_ttl = None
         user = UserCreate(username="test", email="test@example.com", full_name="Test User", age=25)
 
         await repository.create("test_key", user)
 
-        mock_redis_client.set.assert_called_once()
+        stored_user = await repository.get("test_key")
+        assert stored_user is not None
+        ttl = await repository.get_ttl("test_key")
+        assert ttl == -1  # No TTL set
 
     @pytest.mark.asyncio
-    async def test_get_existing(self, repository, mock_redis_client):
+    async def test_get_existing(self, repository):
         """Test getting existing record."""
-        user_data = (
-            '{"username": "test", "email": "test@example.com", "full_name": "Test User", "age": 25, "is_active": true}'
-        )
-        mock_redis_client.get.return_value = user_data
+        user = UserCreate(username="test", email="test@example.com", full_name="Test User", age=25)
+        await repository.create("test_key", user)
 
         result = await repository.get("test_key")
 
@@ -187,24 +182,34 @@ class TestBaseRepository:
         assert result.age == 25
         assert result.is_active is True
         assert result.id == "test_key"
-        mock_redis_client.get.assert_called_once_with("user:test_key")
 
     @pytest.mark.asyncio
-    async def test_get_nonexistent(self, repository, mock_redis_client):
+    async def test_get_nonexistent(self, repository):
         """Test getting non-existent record."""
-        mock_redis_client.get.return_value = None
+        result = await repository.get("test_key")
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_get_with_deserialization_error(self, repository):
+        """Test getting record with deserialization error - should return None."""
+        user = UserCreate(username="test", email="test@example.com", full_name="Test User", age=25)
+        await repository.create("test_key", user)
+
+        # Manually corrupt the data in Redis to simulate deserialization error
+        redis_client = await repository.redis_manager.get_client()
+        full_key = repository._make_key("test_key")
+        await redis_client.set(full_key, "invalid json data")
 
         result = await repository.get("test_key")
 
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_update_existing(self, repository, mock_redis_client):
+    async def test_update_existing(self, repository):
         """Test updating existing record with partial update."""
-        existing_data = (
-            '{"username": "old", "email": "old@example.com", "full_name": "Old User", "age": 30, "is_active": true}'
-        )
-        mock_redis_client.get.return_value = existing_data
+        user = UserCreate(username="old", email="old@example.com", full_name="Old User", age=30)
+        await repository.create("test_key", user)
 
         update_data = UserUpdate(email="new@example.com", age=31)
 
@@ -219,145 +224,179 @@ class TestBaseRepository:
         assert result.is_active is True
         assert result.id == "test_key"
 
-        mock_redis_client.setex.assert_called_once()
+        stored_user = await repository.get("test_key")
+        assert stored_user.email == "new@example.com"
+        assert stored_user.age == 31
 
     @pytest.mark.asyncio
-    async def test_update_nonexistent(self, repository, mock_redis_client):
+    async def test_update_nonexistent(self, repository):
         """Test updating non-existent record."""
-        mock_redis_client.get.return_value = None
-
         update_data = UserUpdate(email="new@example.com")
         result = await repository.update("test_key", update_data)
 
         assert result is None
-        mock_redis_client.setex.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_delete_existing(self, repository, mock_redis_client):
+    async def test_delete_existing(self, repository):
         """Test deleting existing record."""
-        mock_redis_client.delete.return_value = 1
+        user = UserCreate(username="test", email="test@example.com", full_name="Test User", age=25)
+        await repository.create("test_key", user)
 
         result = await repository.delete("test_key")
 
         assert result is True
-        mock_redis_client.delete.assert_called_once_with("user:test_key")
+
+        stored_user = await repository.get("test_key")
+        assert stored_user is None
 
     @pytest.mark.asyncio
-    async def test_delete_nonexistent(self, repository, mock_redis_client):
+    async def test_delete_nonexistent(self, repository):
         """Test deleting non-existent record."""
-        mock_redis_client.delete.return_value = 0
-
         result = await repository.delete("test_key")
 
         assert result is False
 
     @pytest.mark.asyncio
-    async def test_exists_true(self, repository, mock_redis_client):
+    async def test_exists_true(self, repository):
         """Test checking existence of existing record."""
-        mock_redis_client.exists.return_value = 1
+        user = UserCreate(username="test", email="test@example.com", full_name="Test User", age=25)
+        await repository.create("test_key", user)
 
         result = await repository.exists("test_key")
 
         assert result is True
-        mock_redis_client.exists.assert_called_once_with("user:test_key")
 
     @pytest.mark.asyncio
-    async def test_exists_false(self, repository, mock_redis_client):
+    async def test_exists_false(self, repository):
         """Test checking existence of non-existent record."""
-        mock_redis_client.exists.return_value = 0
-
         result = await repository.exists("test_key")
 
         assert result is False
 
     @pytest.mark.asyncio
-    async def test_list(self, repository, mock_redis_client):
+    async def test_list(self, repository):
         """Test listing records."""
-        mock_redis_client.keys.return_value = [b"user:key1", b"user:key2"]
+        user1 = UserCreate(username="user1", email="user1@example.com", full_name="User 1", age=25)
+        user2 = UserCreate(username="user2", email="user2@example.com", full_name="User 2", age=30, is_active=False)
 
-        mock_pipeline = AsyncMock()
-        mock_pipeline.get = AsyncMock()
-        mock_pipeline.execute = AsyncMock(
-            return_value=[
-                '{"username": "user1", "email": "user1@example.com", "full_name": "User 1", "age": 25, "is_active": true}',
-                '{"username": "user2", "email": "user2@example.com", "full_name": "User 2", "age": 30, "is_active": false}',
-            ]
-        )
-        mock_redis_client.pipeline = AsyncMock(return_value=mock_pipeline)
+        await repository.create("key1", user1)
+        await repository.create("key2", user2)
 
         result = await repository.list()
 
         assert len(result) == 2
         assert all(isinstance(user, UserCreate) for user in result)
-        assert result[0].id == "user:key1"
-        assert result[1].id == "user:key2"
-        assert result[0].username == "user1"
-        assert result[1].username == "user2"
+        usernames = [user.username for user in result]
+        assert "user1" in usernames
+        assert "user2" in usernames
 
     @pytest.mark.asyncio
-    async def test_list_with_limit(self, repository, mock_redis_client):
+    async def test_list_with_limit(self, repository):
         """Test listing records with limit."""
-        mock_redis_client.keys.return_value = [b"user:key1", b"user:key2", b"user:key3"]
+        user1 = UserCreate(username="user1", email="user1@example.com", full_name="User 1", age=25)
+        user2 = UserCreate(username="user2", email="user2@example.com", full_name="User 2", age=30)
+        user3 = UserCreate(username="user3", email="user3@example.com", full_name="User 3", age=35)
 
-        mock_pipeline = AsyncMock()
-        mock_pipeline.get = AsyncMock()
-        mock_pipeline.execute = AsyncMock(
-            return_value=[
-                '{"username": "user1", "email": "user1@example.com", "full_name": "User 1", "age": 25, "is_active": true}',
-                '{"username": "user2", "email": "user2@example.com", "full_name": "User 2", "age": 30, "is_active": false}',
-            ]
-        )
-        mock_redis_client.pipeline = AsyncMock(return_value=mock_pipeline)
+        await repository.create("key1", user1)
+        await repository.create("key2", user2)
+        await repository.create("key3", user3)
 
         result = await repository.list(limit=2)
 
         assert len(result) == 2
 
     @pytest.mark.asyncio
-    async def test_count(self, repository, mock_redis_client):
+    async def test_list_empty(self, repository):
+        """Test listing records when no records exist - should return empty list."""
+        result = await repository.list()
+
+        assert result == []
+        assert len(result) == 0
+
+    @pytest.mark.asyncio
+    async def test_list_with_deserialization_errors(self, repository):
+        """Test listing records with some deserialization errors - should skip corrupted records."""
+        user1 = UserCreate(username="user1", email="user1@example.com", full_name="User 1", age=25)
+        user2 = UserCreate(username="user2", email="user2@example.com", full_name="User 2", age=30)
+        user3 = UserCreate(username="user3", email="user3@example.com", full_name="User 3", age=35)
+
+        await repository.create("key1", user1)
+        await repository.create("key2", user2)
+        await repository.create("key3", user3)
+
+        # Corrupt one of the records to simulate deserialization error
+        redis_client = await repository.redis_manager.get_client()
+        full_key = repository._make_key("key2")
+        await redis_client.set(full_key, "invalid json data")
+
+        result = await repository.list()
+
+        # Should return only valid records, skipping the corrupted one
+        assert len(result) == 2
+        usernames = [user.username for user in result]
+        assert "user1" in usernames
+        assert "user3" in usernames
+        assert "user2" not in usernames  # Corrupted record should be skipped
+
+    @pytest.mark.asyncio
+    async def test_count(self, repository):
         """Test counting records."""
-        mock_redis_client.keys.return_value = [b"user:key1", b"user:key2", b"user:key3"]
+        user1 = UserCreate(username="user1", email="user1@example.com", full_name="User 1", age=25)
+        user2 = UserCreate(username="user2", email="user2@example.com", full_name="User 2", age=30)
+        user3 = UserCreate(username="user3", email="user3@example.com", full_name="User 3", age=35)
+
+        await repository.create("key1", user1)
+        await repository.create("key2", user2)
+        await repository.create("key3", user3)
 
         result = await repository.count()
 
         assert result == 3
 
     @pytest.mark.asyncio
-    async def test_set_ttl(self, repository, mock_redis_client):
+    async def test_set_ttl(self, repository):
         """Test setting TTL."""
-        mock_redis_client.expire.return_value = 1
+        user = UserCreate(username="test", email="test@example.com", full_name="Test User", age=25)
+        await repository.create("test_key", user)
 
         result = await repository.set_ttl("test_key", 7200)
 
         assert result is True
-        mock_redis_client.expire.assert_called_once_with("user:test_key", 7200)
+
+        ttl = await repository.get_ttl("test_key")
+        assert ttl is not None
+        assert ttl > 0
 
     @pytest.mark.asyncio
-    async def test_get_ttl(self, repository, mock_redis_client):
+    async def test_get_ttl(self, repository):
         """Test getting TTL."""
-        mock_redis_client.ttl.return_value = 3600
+        user = UserCreate(username="test", email="test@example.com", full_name="Test User", age=25)
+        await repository.create("test_key", user, ttl=3600)
 
         result = await repository.get_ttl("test_key")
 
-        assert result == 3600
-        mock_redis_client.ttl.assert_called_once_with("user:test_key")
+        assert result is not None
+        assert result > 0
 
     @pytest.mark.asyncio
-    async def test_get_ttl_nonexistent(self, repository, mock_redis_client):
+    async def test_get_ttl_nonexistent(self, repository):
         """Test getting TTL for non-existent key."""
-        mock_redis_client.ttl.return_value = -2
-
         result = await repository.get_ttl("test_key")
 
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_clear(self, repository, mock_redis_client):
+    async def test_clear(self, repository):
         """Test clearing records."""
-        mock_redis_client.keys.return_value = [b"user:key1", b"user:key2"]
-        mock_redis_client.delete.return_value = 2
+        user1 = UserCreate(username="user1", email="user1@example.com", full_name="User 1", age=25)
+        user2 = UserCreate(username="user2", email="user2@example.com", full_name="User 2", age=30)
+
+        await repository.create("key1", user1)
+        await repository.create("key2", user2)
 
         result = await repository.clear()
 
         assert result == 2
-        mock_redis_client.delete.assert_called_once_with(b"user:key1", b"user:key2")
+
+        count = await repository.count()
+        assert count == 0

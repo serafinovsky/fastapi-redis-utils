@@ -116,7 +116,7 @@ class BaseRepository(Generic[CreateSchemaType, UpdateSchemaType, ResultSchemaTyp
     async def delete(self, key: str) -> bool:
         redis_client = await self.redis_manager.get_client()
         full_key = self._make_key(key)
-        deleted = await redis_client.delete(full_key)
+        deleted: int = await redis_client.delete(full_key)
         logger.debug(f"Deleted record with key: {full_key}")
         return deleted > 0
 
@@ -131,8 +131,10 @@ class BaseRepository(Generic[CreateSchemaType, UpdateSchemaType, ResultSchemaTyp
         keys = await redis_client.keys(full_pattern)
         if limit:
             keys = keys[:limit]
+
         if not keys:
             return []
+
         pipeline = await redis_client.pipeline()
         for key in keys:
             await pipeline.get(key)
@@ -173,6 +175,6 @@ class BaseRepository(Generic[CreateSchemaType, UpdateSchemaType, ResultSchemaTyp
         keys = await redis_client.keys(full_pattern)
         if not keys:
             return 0
-        deleted = await redis_client.delete(*keys)
+        deleted: int = await redis_client.delete(*keys)
         logger.info(f"Cleared {deleted} records")
         return deleted

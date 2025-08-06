@@ -193,18 +193,18 @@ class TestRedisManager:
             redis_manager.get_client()
 
     @pytest.mark.asyncio
-    async def test_execute_with_retry_success(self, redis_manager):
+    async def test_execute_with_retry_success(self, connected_redis_manager):
         """Test successful operation execution with retry."""
 
         async def operation():
             return "success"
 
-        result = await redis_manager.execute_with_retry(operation)
+        result = await connected_redis_manager.execute_with_retry(operation)
 
         assert result == "success"
 
     @pytest.mark.asyncio
-    async def test_execute_with_retry_failure_then_success(self, redis_manager):
+    async def test_execute_with_retry_failure_then_success(self, connected_redis_manager):
         """Test operation execution with retry - failure then success."""
         call_count = 0
 
@@ -215,17 +215,31 @@ class TestRedisManager:
                 raise Exception("First attempt failed")
             return "success"
 
-        result = await redis_manager.execute_with_retry(operation)
+        result = await connected_redis_manager.execute_with_retry(operation)
 
         assert result == "success"
         assert call_count == 2
 
     @pytest.mark.asyncio
-    async def test_execute_with_retry_all_failed(self, redis_manager):
+    async def test_execute_with_retry_all_failed(self, connected_redis_manager):
         """Test operation execution with retry - all attempts failed."""
 
         async def operation():
             raise Exception("Operation failed")
 
         with pytest.raises(Exception, match="Operation failed"):
-            await redis_manager.execute_with_retry(operation)
+            await connected_redis_manager.execute_with_retry(operation)
+
+    @pytest.mark.asyncio
+    async def test_execute_with_retry_when_not_connected(self, redis_manager):
+        """Test execute_with_retry when not connected - should call connect()."""
+
+        async def operation():
+            return "success"
+
+        with patch.object(redis_manager, "connect") as mock_connect:
+            result = await redis_manager.execute_with_retry(operation)
+
+            # Verify connect was called since manager was not connected
+            mock_connect.assert_called_once()
+            assert result == "success"
