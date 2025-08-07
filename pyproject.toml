@@ -24,11 +24,12 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Database",
     "Framework :: FastAPI",
+    "Typing :: Typed",
 ]
 requires-python = ">=3.11"
 dependencies = [
     "redis>=6.2.0",
-    "pydantic>=2.11.7"
+    "pydantic>=2.11.7",
 ]
 
 [project.urls]
