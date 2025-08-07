@@ -50,6 +50,10 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'release' && github.event.action == 'published'
 
+    permissions:
+      id-token: write
+      contents: read
+
     steps:
       - uses: actions/checkout@v4
 
