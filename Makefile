@@ -1,11 +1,8 @@
-.PHONY: help install test lint format clean build publish docs
+.PHONY: help install test lint format clean build publish
 
 help: ## Show help
 	@echo "Available commands:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
-
-install: ## Install development dependencies
-	uv sync --dev
 
 test: ## Run tests
 	uv run pytest
@@ -14,7 +11,7 @@ test-cov: ## Run tests with coverage
 	uv run pytest --cov=fastapi_redis_utils --cov-report=html --cov-report=term-missing
 
 lint: ## Check code with linters
-	uv run ruff check .
+	uv run ruff check . --preview
 	uv run ruff format .
 	uv run mypy .
 
@@ -23,7 +20,7 @@ security: ## Run security checks
 
 format: ## Format code
 	uv run ruff format .
-	uv run ruff check --fix .
+	uv run ruff check . --preview --fix
 
 clean: ## Clean temporary files
 	find . -type d -name __pycache__ -exec rm -rf {} +
@@ -33,7 +30,9 @@ clean: ## Clean temporary files
 	find . -type d -name "*.egg-info" -exec rm -rf {} +
 	find . -type d -name "*.egg" -exec rm -rf {} +
 	find . -type d -name ".pytest_cache" -exec rm -rf {} +
-	find . -type d -name ".coverage" -delete
+	find . -type f -name ".coverage" -delete
+	find . -type f -name "coverage.xml" -delete
+	find . -type f -name "bandit-report.json" -delete
 	find . -type d -name "htmlcov" -exec rm -rf {} +
 	find . -type d -name ".mypy_cache" -exec rm -rf {} +
 	find . -type d -name "dist" -exec rm -rf {} +
@@ -43,10 +42,8 @@ build: ## Build package
 	uv build
 
 check: ## Full pre-commit check
-	uv run ruff check .
-	uv run mypy fastapi_redis_utils tests/
-	uv run bandit -r fastapi_redis_utils -f json -o bandit-report.json || true
-	uv run pytest
+	@make lint
+	@make test
 
 example-fastapi: ## Run FastAPI example
 	uv run python examples/fastapi_integration.py
@@ -64,7 +61,6 @@ release: ## Create release: build, test, tag and push
 	@echo "Creating release for version $(shell uv run python -c "import fastapi_redis_utils; print(fastapi_redis_utils.__version__)")"
 	@make clean
 	@make test
-	@make build
 	@make publish
 	@echo "Release v$(shell uv run python -c "import fastapi_redis_utils; print(fastapi_redis_utils.__version__)") completed successfully"
 
@@ -73,9 +69,3 @@ publish: ## Create and push git tag with current version
 	@git tag -a v$(shell uv run python -c "import fastapi_redis_utils; print(fastapi_redis_utils.__version__)") -m "Release version $(shell uv run python -c "import fastapi_redis_utils; print(fastapi_redis_utils.__version__)")"
 	@git push origin v$(shell uv run python -c "import fastapi_redis_utils; print(fastapi_redis_utils.__version__)")
 	@echo "Tag v$(shell uv run python -c "import fastapi_redis_utils; print(fastapi_redis_utils.__version__)") created and pushed successfully"
-
-publish-dry-run: ## Show what would be done without creating tag
-	@echo "Would create git tag: v$(shell uv run python -c "import fastapi_redis_utils; print(fastapi_redis_utils.__version__)")"
-	@echo "Would push tag to origin"
-	@echo "Current version: $(shell uv run python -c "import fastapi_redis_utils; print(fastapi_redis_utils.__version__)")"
-

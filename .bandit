@@ -1,1 +1,1 @@
-exclude_dirs = ["tests", "examples", "htmlcov", "dist", "build"]
+exclude_dirs = ["tests", "examples", "htmlcov", "dist", "build", ".venv"]

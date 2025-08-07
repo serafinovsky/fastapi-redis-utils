@@ -71,7 +71,9 @@ class RedisManager:
                     await asyncio.sleep(self.retry_delay * (attempt + 1))
                 else:
                     self._is_connected = False
-                    raise ConnectionError(f"Failed to connect to Redis after {self.retry_attempts} attempts: {e}")
+                    raise ConnectionError(
+                        f"Failed to connect to Redis after {self.retry_attempts} attempts: {e}"
+                    ) from e
 
     async def ensure_connection(self) -> None:
         """Ensure Redis connection is available."""

@@ -14,6 +14,7 @@ import uuid
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import datetime
+from typing import Annotated
 from uuid import UUID
 
 import redis.asyncio as redis
@@ -73,7 +74,7 @@ async def health_check() -> dict[str, str | bool]:
 
 
 @app.get("/depends/{key}")
-async def get_cached_data(key: str, redis_client: redis.Redis = Depends(get_redis_client)) -> dict[str, str]:
+async def get_cached_data(key: str, redis_client: Annotated[redis.Redis, Depends(get_redis_client)]) -> dict[str, str]:
     """Get data from cache."""
     value = await redis_client.get(key)
     if value is None:
@@ -87,7 +88,7 @@ async def get_cached_data(key: str, redis_client: redis.Redis = Depends(get_redi
 
 @app.post("/depends/{key}")
 async def set_cached_data(
-    key: str, value: str, redis_client: redis.Redis = Depends(get_redis_client)
+    key: str, value: str, redis_client: Annotated[redis.Redis, Depends(get_redis_client)]
 ) -> dict[str, str]:
     """Save data to cache."""
     await redis_client.set(key, value)
@@ -95,7 +96,9 @@ async def set_cached_data(
 
 
 @app.delete("/depends/{key}")
-async def delete_cached_data(key: str, redis_client: redis.Redis = Depends(get_redis_client)) -> dict[str, str]:
+async def delete_cached_data(
+    key: str, redis_client: Annotated[redis.Redis, Depends(get_redis_client)]
+) -> dict[str, str]:
     """Delete data from cache."""
     deleted = await redis_client.delete(key)
     if deleted == 0:
@@ -108,7 +111,9 @@ async def delete_cached_data(key: str, redis_client: redis.Redis = Depends(get_r
 
 
 @app.get("/depends/{key}/exists")
-async def check_key_exists(key: str, redis_client: redis.Redis = Depends(get_redis_client)) -> dict[str, str | bool]:
+async def check_key_exists(
+    key: str, redis_client: Annotated[redis.Redis, Depends(get_redis_client)]
+) -> dict[str, str | bool]:
     """Check if key exists in cache."""
     exists = await redis_client.exists(key)
     return {"key": key, "exists": bool(exists)}
@@ -143,14 +148,14 @@ class DemoRepository(BaseRepository[CreateDemoSchema, UpdateDemoSchema, DemoSche
 demo_crud = DemoRepository(redis_manager, CreateDemoSchema, UpdateDemoSchema, DemoSchema)
 
 
-@app.post("/repo/", response_model=DemoSchema, status_code=status.HTTP_201_CREATED)
+@app.post("/repo/", status_code=status.HTTP_201_CREATED)
 async def create_demo(demo_model: CreateDemoSchema) -> DemoSchema:
     """Create a new demo record."""
     demo_id = str(uuid.uuid4())
     return await demo_crud.create(demo_id, demo_model)
 
 
-@app.get("/repo/{demo_id}", response_model=DemoSchema)
+@app.get("/repo/{demo_id}")
 async def get_demo(demo_id: UUID) -> DemoSchema:
     """Get a demo record by ID."""
     demo = await demo_crud.get(str(demo_id))
@@ -163,13 +168,13 @@ async def get_demo(demo_id: UUID) -> DemoSchema:
     return demo
 
 
-@app.get("/repo/", response_model=list[DemoSchema])
+@app.get("/repo/")
 async def list_demos(limit: int = 100) -> list[DemoSchema]:
     """List all demo records"""
     return await demo_crud.list(limit=limit)
 
 
-@app.put("/repo/{demo_id}", response_model=DemoSchema)
+@app.put("/repo/{demo_id}")
 async def update_demo(demo_id: UUID, demo_update: UpdateDemoSchema) -> DemoSchema:
     """Update a demo record."""
     updated_demo = await demo_crud.update(str(demo_id), demo_update)

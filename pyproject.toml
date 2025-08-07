@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "fastapi-redis-utils"
 dynamic = ["version"]
-description = "Async Redis manager with FastAPI integration, connection pooling and retry mechanism"
+description = "Fast and easy Redis integration for FastAPI applications."
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
@@ -32,6 +32,21 @@ dependencies = [
     "pydantic>=2.11.7",
 ]
 
+[dependency-groups]
+dev = [
+    "hatch>=1.14.1",
+    "twine>=6.1.0",
+    "mypy>=1.17.1",
+    "pytest>=8.4.1",
+    "pytest-asyncio>=1.1.0",
+    "pytest-cov>=6.2.1",
+    "uvicorn>=0.35.0",
+    "fastapi>=0.116.1",
+    "ruff>=0.12.7",
+    "fakeredis>=2.30.3",
+    "bandit>=1.8.6"
+]
+
 [project.urls]
 Homepage = "https://github.com/serafinovsky/fastapi-redis-utils"
 Documentation = "https://github.com/serafinovsky/fastapi-redis-utils#readme"
@@ -50,44 +65,46 @@ packages = ["fastapi_redis_utils"]
 target-version = "py311"
 line-length = 120
 respect-gitignore = true
-exclude = [
-    ".history/",
-    "site/",
-    ".venv/",
-    "__pycache__/",
-    "*.pyc",
-    "*.pyo",
-    "*.pyd",
-    ".pytest_cache/",
-    ".coverage",
-    "htmlcov/",
-    ".mypy_cache/",
-    "dist/",
-    "build/",
-]
 
 [tool.ruff.lint]
 select = [
-    "E",  # pycodestyle errors
-    "W",  # pycodestyle warnings
-    "F",  # pyflakes
-    "I",  # isort
-    "B",  # flake8-bugbear
-    "C4", # flake8-comprehensions
-    "UP", # pyupgrade
+    "E",        # pycodestyle errors
+    "W",        # pycodestyle warnings
+    "F",        # pyflakes
+    "I",        # isort
+    "B",        # flake8-bugbear
+    "C4",       # flake8-comprehensions
+    "UP",       # pyupgrade
+    "FAST",     # fastapi specific rules
+    "ASYNC",    # async/await rules
+    "S",        # security rules
+    "LOG",      # logging best practices
+    "Q",        # quotes standardization
+    "SLF",      # private member access
+    "SIM",      # code simplification
+    "TC",       # type checking
+    "ARG",      # unused arguments
+    "PTH",      # pathlib best practices
+    "N",        # naming conventions
+    "T20"       # print statement usage
+
 ]
-ignore = [
-    "E501",  # line too long, handled by formatter
-    "B008",  # do not perform function calls in argument defaults
-    "C901",  # too complex
-    "B904",  # raise exceptions with from
-]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "SLF001", "SIM117"]
+"examples/*" = ["ARG001", "S104"]
+
 
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
+
+[tool.ruff.lint.flake8-quotes]
+inline-quotes = "double"
+multiline-quotes = "double"
+docstring-quotes = "double"
 
 [tool.mypy]
 python_version = "3.11"
@@ -104,12 +121,6 @@ warn_no_return = true
 warn_unreachable = true
 strict_equality = true
 
-[[tool.mypy.overrides]]
-module = [
-    "redis.*",
-    "redis.asyncio.*",
-]
-ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = [
@@ -165,18 +176,3 @@ exclude_lines = [
     "@(abc\\.)?abstractmethod",
     "logger.*"
 ] 
-
-[dependency-groups]
-dev = [
-    "hatch>=1.14.1",
-    "twine>=6.1.0",
-    "mypy>=1.17.1",
-    "pytest>=8.4.1",
-    "pytest-asyncio>=1.1.0",
-    "pytest-cov>=6.2.1",
-    "uvicorn>=0.35.0",
-    "fastapi>=0.116.1",
-    "ruff>=0.12.7",
-    "fakeredis>=2.30.3",
-    "bandit>=1.8.6"
-]
