@@ -1,4 +1,4 @@
-__version__ = "1.0.6"
+__version__ = "1.0.7"
 
 from .dependency import create_redis_client_dependencies
 from .manager import RedisManager
