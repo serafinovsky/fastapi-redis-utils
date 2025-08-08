@@ -58,7 +58,7 @@ class BaseRepository(Generic[CreateSchemaType, UpdateSchemaType, ResultSchemaTyp
         return result_model
 
     async def create(self, key: str, data: CreateSchemaType, ttl: int | None = None) -> ResultSchemaType:
-        redis_client = await self.redis_manager.get_client()
+        redis_client = self.redis_manager.get_client()
         full_key = self._make_key(key)
         serialized_data = self._serialize(data)
         ttl_to_use = ttl if ttl is not None else self.default_ttl
@@ -70,7 +70,7 @@ class BaseRepository(Generic[CreateSchemaType, UpdateSchemaType, ResultSchemaTyp
         return self._create_result_model(data, key)
 
     async def get(self, key: str) -> ResultSchemaType | None:
-        redis_client = await self.redis_manager.get_client()
+        redis_client = self.redis_manager.get_client()
         full_key = self._make_key(key)
         data = await redis_client.get(full_key)
         if data is None:
@@ -89,7 +89,7 @@ class BaseRepository(Generic[CreateSchemaType, UpdateSchemaType, ResultSchemaTyp
         data: UpdateSchemaType,
         ttl: int | None = None,
     ) -> ResultSchemaType | None:
-        redis_client = await self.redis_manager.get_client()
+        redis_client = self.redis_manager.get_client()
         full_key = self._make_key(key)
         existing_data = await redis_client.get(full_key)
         if existing_data is None:
@@ -114,19 +114,19 @@ class BaseRepository(Generic[CreateSchemaType, UpdateSchemaType, ResultSchemaTyp
             return None
 
     async def delete(self, key: str) -> bool:
-        redis_client = await self.redis_manager.get_client()
+        redis_client = self.redis_manager.get_client()
         full_key = self._make_key(key)
         deleted: int = await redis_client.delete(full_key)
         logger.debug(f"Deleted record with key: {full_key}")
         return deleted > 0
 
     async def exists(self, key: str) -> bool:
-        redis_client = await self.redis_manager.get_client()
+        redis_client = self.redis_manager.get_client()
         full_key = self._make_key(key)
         return bool(await redis_client.exists(full_key))
 
     async def list(self, pattern: str = "*", limit: int | None = None) -> list[ResultSchemaType]:
-        redis_client = await self.redis_manager.get_client()
+        redis_client = self.redis_manager.get_client()
         full_pattern = f"{self.key_prefix}{pattern}"
         keys = await redis_client.keys(full_pattern)
         if limit:
@@ -153,24 +153,24 @@ class BaseRepository(Generic[CreateSchemaType, UpdateSchemaType, ResultSchemaTyp
         return result
 
     async def count(self, pattern: str = "*") -> int:
-        redis_client = await self.redis_manager.get_client()
+        redis_client = self.redis_manager.get_client()
         full_pattern = f"{self.key_prefix}{pattern}"
         keys = await redis_client.keys(full_pattern)
         return len(keys)
 
     async def set_ttl(self, key: str, ttl: int) -> bool:
-        redis_client = await self.redis_manager.get_client()
+        redis_client = self.redis_manager.get_client()
         full_key = self._make_key(key)
         return bool(await redis_client.expire(full_key, ttl))
 
     async def get_ttl(self, key: str) -> int | None:
-        redis_client = await self.redis_manager.get_client()
+        redis_client = self.redis_manager.get_client()
         full_key = self._make_key(key)
         ttl = await redis_client.ttl(full_key)
         return ttl if ttl != -2 else None
 
     async def clear(self, pattern: str = "*") -> int:
-        redis_client = await self.redis_manager.get_client()
+        redis_client = self.redis_manager.get_client()
         full_pattern = f"{self.key_prefix}{pattern}"
         keys = await redis_client.keys(full_pattern)
         if not keys:

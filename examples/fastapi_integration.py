@@ -10,6 +10,7 @@ This example demonstrates:
 """
 
 import logging
+import os
 import uuid
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -27,8 +28,16 @@ from fastapi_redis_utils import BaseRepository, BaseResultModel, RedisManager, c
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+def get_redis_url() -> str:
+    """Get Redis URL from environment or use default."""
+    redis_host = os.getenv("REDIS_HOST", "localhost")
+    redis_port = os.getenv("REDIS_PORT", "6379")
+    return f"redis://{redis_host}:{redis_port}"
+
+
 redis_manager = RedisManager(
-    dsn="redis://localhost:6379",
+    dsn=get_redis_url(),
     max_connections=20,
     retry_attempts=3,
 )

@@ -2,20 +2,11 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from fastapi_redis_utils import RedisManager, create_redis_client_dependencies
+from fastapi_redis_utils import create_redis_client_dependencies
 
 
 class TestDependency:
     """Tests for FastAPI dependencies."""
-
-    @pytest.fixture
-    def redis_manager(self):
-        """Fixture for creating RedisManager."""
-        return RedisManager(
-            dsn="redis://localhost:6379",
-            max_connections=10,
-            retry_attempts=2,
-        )
 
     @pytest.fixture
     def mock_redis_client(self):
@@ -25,7 +16,6 @@ class TestDependency:
     def test_create_redis_client_dependencies(self, redis_manager):
         """Test dependency creation."""
         dependency = create_redis_client_dependencies(redis_manager)
-
         assert callable(dependency)
         assert dependency.__name__ == "get_redis_client"
 

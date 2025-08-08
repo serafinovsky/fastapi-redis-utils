@@ -59,34 +59,6 @@ uv sync --dev
 
 ## Quick Start
 
-### Basic Usage
-
-```python
-import asyncio
-from fastapi_redis_utils import RedisManager
-
-async def main():
-    # Create manager
-    redis_manager = RedisManager(
-        dsn="redis://localhost:6379",
-        max_connections=20,
-        retry_attempts=3
-    )
-
-    # Connect
-    await redis_manager.connect()
-
-    # Use
-    client = redis_manager.get_client()
-    await client.set("key", "value")
-    value = await client.get("key")
-
-    # Close
-    await redis_manager.close()
-
-asyncio.run(main())
-```
-
 ### FastAPI Integration
 
 ```python
@@ -104,21 +76,25 @@ redis_manager = RedisManager(
 # Create FastAPI dependency
 get_redis_client = create_redis_client_dependencies(redis_manager)
 
+
 @app.on_event("startup")
 async def startup_event():
     """Connect to Redis on application startup"""
     await redis_manager.connect()
+
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Close connection on application shutdown"""
     await redis_manager.close()
 
+
 @app.get("/cache/{key}")
 async def get_cached_data(key: str, redis_client: redis.Redis = Depends(get_redis_client)):
     """Get data from cache"""
     value = await redis_client.get(key)
     return {"key": key, "value": value}
+
 
 @app.post("/cache/{key}")
 async def set_cached_data(
@@ -129,6 +105,7 @@ async def set_cached_data(
     """Save data to cache"""
     await redis_client.set(key, value)
     return {"key": key, "value": value, "status": "saved"}
+
 
 @app.get("/health")
 async def health_check():
@@ -310,53 +287,33 @@ The `update` method performs partial updates - only fields that are set in the u
 ### Install development dependencies
 
 ```bash
-uv sync --dev
+make dev-setup
 ```
 
 ### Run tests
 
 ```bash
-uv run pytest
+make test
 ```
 
 ### Code checks
 
 ```bash
-uv run ruff check .
-uv run mypy .
+make check
 ```
 
 ### Build package
 
 ```bash
-uv run build
+make build
 ```
 
 ### Makefile Commands
 
-The project includes convenient Makefile commands for development:
+The project includes convenient Makefile commands for development. Use help for more details:
 
 ```bash
-# Main commands
-make install          # Install development dependencies
-make test            # Run tests
-make lint            # Check code with linters
-make format          # Format code
-make build           # Build package
-make clean           # Clean temporary files
-
-# Version management
-make version         # Show current version
-
-# Publishing
-make publish         # Create and push git tag with current version
-make publish-dry-run # Show what would be done without creating tag
-make release         # Full release: build, test, tag and push
-
-# Additional commands
-make tags            # List all git tags
-make check           # Full pre-commit check
-make example-fastapi # Run FastAPI example
+make help
 ```
 
 ### Release Workflow
@@ -366,8 +323,7 @@ make example-fastapi # Run FastAPI example
 3. Or step by step:
 
 ```bash
-make test          # Run tests
-make build         # Build package
+make check         # Run tests
 make publish       # Create and push tag
 ```
 

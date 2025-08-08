@@ -141,10 +141,11 @@ class TestBaseRepository:
         assert stored_user.username == user.username
 
     @pytest.mark.asyncio
-    async def test_create_with_custom_ttl(self, repository):
+    async def test_create_with_custom_ttl(self, repository: BaseRepository[UserCreate, UserUpdate, UserResult]):
         """Test record creation with custom TTL."""
         user = UserCreate(username="test", email="test@example.com", full_name="Test User", age=25)
 
+        assert await repository.get("test_key") is None
         await repository.create("test_key", user, ttl=7200)
 
         stored_user = await repository.get("test_key")
@@ -197,7 +198,7 @@ class TestBaseRepository:
         await repository.create("test_key", user)
 
         # Manually corrupt the data in Redis to simulate deserialization error
-        redis_client = await repository.redis_manager.get_client()
+        redis_client = repository.redis_manager.get_client()
         full_key = repository._make_key("test_key")
         await redis_client.set(full_key, "invalid json data")
 
@@ -325,7 +326,7 @@ class TestBaseRepository:
         await repository.create("key3", user3)
 
         # Corrupt one of the records to simulate deserialization error
-        redis_client = await repository.redis_manager.get_client()
+        redis_client = repository.redis_manager.get_client()
         full_key = repository._make_key("key2")
         await redis_client.set(full_key, "invalid json data")
 

@@ -3,21 +3,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import redis.asyncio as redis
 
-from fastapi_redis_utils import RedisManager
-
 
 class TestRedisManager:
     """Tests for RedisManager."""
-
-    @pytest.fixture
-    def redis_manager(self):
-        """Fixture for creating RedisManager."""
-        return RedisManager(
-            dsn="redis://localhost:6379",
-            max_connections=10,
-            retry_attempts=2,
-            retry_delay=0.1,
-        )
 
     @pytest.fixture
     def mock_redis_client(self):
@@ -31,12 +19,12 @@ class TestRedisManager:
         """Fixture for mocking connection pool."""
         return MagicMock(spec=redis.ConnectionPool)
 
-    def test_init(self, redis_manager):
+    def test_init(self, redis_manager, get_redis_url):
         """Test RedisManager initialization."""
-        assert redis_manager.dsn == "redis://localhost:6379"
+        assert redis_manager.dsn == get_redis_url
         assert redis_manager.max_connections == 10
-        assert redis_manager.retry_attempts == 2
-        assert redis_manager.retry_delay == 0.1
+        assert redis_manager.retry_attempts == 5
+        assert redis_manager.retry_delay == 0.5
         assert redis_manager.redis_client is None
         assert redis_manager._connection_pool is None
         assert not redis_manager._is_connected
@@ -86,7 +74,7 @@ class TestRedisManager:
     async def test_connect_all_attempts_failed(self, redis_manager):
         """Test failed connection after all attempts."""
         with patch("redis.asyncio.ConnectionPool.from_url", side_effect=Exception("Connection failed")):
-            with pytest.raises(ConnectionError, match="Failed to connect to Redis after 2 attempts"):
+            with pytest.raises(ConnectionError, match="Failed to connect to Redis after 5 attempts"):
                 await redis_manager.connect()
 
     @pytest.mark.asyncio
@@ -243,3 +231,27 @@ class TestRedisManager:
             # Verify connect was called since manager was not connected
             mock_connect.assert_called_once()
             assert result == "success"
+
+    @pytest.mark.asyncio
+    async def test_redis_connection_lifecycle(self, redis_manager):
+        """Test complete connection lifecycle with real Redis."""
+        assert redis_manager._is_connected is False
+        assert redis_manager.redis_client is None
+        assert redis_manager._connection_pool is None
+
+        # Test connection
+        await redis_manager.connect()
+        assert redis_manager._is_connected is True
+
+        # Test operations
+        client = redis_manager.get_client()
+        await client.set("lifecycle_test", "working")
+        assert await client.get("lifecycle_test") == "working"
+
+        # Test health check
+        assert await redis_manager.health_check() is True
+
+        # Test close
+        await redis_manager.close()
+        assert redis_manager._is_connected is False
+        assert redis_manager.redis_client is None

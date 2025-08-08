@@ -1,0 +1,32 @@
+services:
+  redis:
+    container_name: redis
+    image: redis:8-alpine
+    expose:
+      - 6379
+    command: redis-server --save "" --appendonly no
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - test-network
+
+  app:
+    container_name: app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    networks:
+      - test-network
+
+networks:
+  test-network:
+    driver: bridge
