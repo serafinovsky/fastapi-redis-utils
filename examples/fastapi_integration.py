@@ -142,12 +142,12 @@ class UpdateDemoSchema(BaseModel):
 
 
 class DemoSchema(BaseResultModel):
-    id: str | None = None
+    key: str | None = None
     field1: str
     field2: str
 
-    def set_id(self, id: str) -> None:
-        self.id = id
+    def set_key(self, key: str) -> None:
+        self.key = key
 
 
 class DemoRepository(BaseRepository[CreateDemoSchema, UpdateDemoSchema, DemoSchema]):
@@ -161,7 +161,13 @@ demo_crud = DemoRepository(redis_manager, CreateDemoSchema, UpdateDemoSchema, De
 async def create_demo(demo_model: CreateDemoSchema) -> DemoSchema:
     """Create a new demo record."""
     demo_id = str(uuid.uuid4())
-    return await demo_crud.create(demo_id, demo_model)
+    result = await demo_crud.create(demo_id, demo_model)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to create demo record with ID '{demo_id}'",
+        )
+    return result
 
 
 @app.get("/repo/{demo_id}")

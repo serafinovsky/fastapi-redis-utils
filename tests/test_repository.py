@@ -5,12 +5,20 @@ This module contains tests for the BaseRepository class that provides
 CRUD operations for Pydantic models with Redis.
 """
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from pydantic import BaseModel
 
-from fastapi_redis_utils import BaseRepository, BaseResultModel, RedisManager
+from fastapi_redis_utils import (
+    BaseRepository,
+    BaseResultModel,
+    DeserializationError,
+    NotFoundError,
+    RedisManager,
+    RepositoryError,
+    SerializationError,
+)
 
 
 class UserCreate(BaseModel):
@@ -30,17 +38,17 @@ class UserUpdate(BaseModel):
 
 
 class UserResult(UserCreate, BaseResultModel):
-    id: str | None = None
+    key: str | None = None
 
-    def set_id(self, id: str) -> None:
-        self.id = id
+    def set_key(self, key: str) -> None:
+        self.key = key
 
 
 @pytest.fixture
 def mock_redis_manager():
     """Create a mock Redis manager for initialization tests."""
     manager = MagicMock(spec=RedisManager)
-    manager.get_client = AsyncMock()
+    manager.get_client = MagicMock()
     return manager
 
 
@@ -119,7 +127,7 @@ class TestBaseRepository:
 
     def test_deserialize_invalid_json(self, repository):
         """Test deserialization with invalid JSON."""
-        with pytest.raises(ValueError, match="Failed to deserialize model"):
+        with pytest.raises(DeserializationError, match="Failed to deserialize model"):
             repository._deserialize("invalid json", UserCreate)
 
     @pytest.mark.asyncio
@@ -134,7 +142,7 @@ class TestBaseRepository:
         assert result.full_name == user.full_name
         assert result.age == user.age
         assert result.is_active == user.is_active
-        assert result.id == "test_key"
+        assert result.key == "test_key"
 
         stored_user = await repository.get("test_key")
         assert stored_user is not None
@@ -182,7 +190,7 @@ class TestBaseRepository:
         assert result.full_name == "Test User"
         assert result.age == 25
         assert result.is_active is True
-        assert result.id == "test_key"
+        assert result.key == "test_key"
 
     @pytest.mark.asyncio
     async def test_get_nonexistent(self, repository):
@@ -223,7 +231,7 @@ class TestBaseRepository:
         assert result.full_name == "Old User"
         assert result.age == 31
         assert result.is_active is True
-        assert result.id == "test_key"
+        assert result.key == "test_key"
 
         stored_user = await repository.get("test_key")
         assert stored_user.email == "new@example.com"
@@ -401,3 +409,174 @@ class TestBaseRepository:
 
         count = await repository.count()
         assert count == 0
+
+    @pytest.mark.asyncio
+    async def test_get_with_deserialization_error_raise(self, repository):
+        user = UserCreate(username="test", email="test@example.com", full_name="Test User", age=25)
+        await repository.create("test_key", user)
+        redis_client = repository.redis_manager.get_client()
+        full_key = repository._make_key("test_key")
+        await redis_client.set(full_key, "invalid json data")
+
+        with pytest.raises(DeserializationError):
+            await repository.get("test_key", skip_raise=False)
+
+    @pytest.mark.asyncio
+    async def test_get_nonexistent_raise(self, repository):
+        with pytest.raises(NotFoundError):
+            await repository.get("missing", skip_raise=False)
+
+    @pytest.mark.asyncio
+    async def test_update_nonexistent_raise(self, repository):
+        update_data = UserUpdate(email="new@example.com")
+        with pytest.raises(NotFoundError):
+            await repository.update("test_key", update_data, skip_raise=False)
+
+    @pytest.mark.asyncio
+    async def test_update_serialization_error_skip_and_raise(self, repository):
+        user = UserCreate(username="u", email="e@e", full_name="F", age=1)
+        await repository.create("k1", user)
+        update_data = UserUpdate(email="x@x")
+
+        with patch.object(type(repository), "_serialize", side_effect=SerializationError("boom")):
+            assert await repository.update("k1", update_data) is None
+            with pytest.raises(SerializationError):
+                await repository.update("k1", update_data, skip_raise=False)
+
+    @pytest.mark.asyncio
+    async def test_list_with_deserialization_error_raise(self, repository):
+        user = UserCreate(username="u", email="e@e", full_name="F", age=1)
+        await repository.create("k", user)
+        redis_client = repository.redis_manager.get_client()
+        await redis_client.set(repository._make_key("k"), "invalid json data")
+        with pytest.raises(DeserializationError):
+            await repository.list(skip_raise=False)
+
+    @pytest.mark.asyncio
+    async def test_delete_nonexistent_raise(self, repository):
+        with pytest.raises(NotFoundError):
+            await repository.delete("missing", skip_raise=False)
+
+    @pytest.mark.asyncio
+    async def test_set_ttl_nonexistent_skip_and_raise(self, repository):
+        assert await repository.set_ttl("missing", 1) is False
+        with pytest.raises(NotFoundError):
+            await repository.set_ttl("missing", 1, skip_raise=False)
+
+    @pytest.mark.asyncio
+    async def test_get_ttl_nonexistent_raise(self, repository):
+        with pytest.raises(NotFoundError):
+            await repository.get_ttl("missing", skip_raise=False)
+
+    @pytest.mark.asyncio
+    async def test_clear_empty_raise(self, repository):
+        with pytest.raises(NotFoundError):
+            await repository.clear("nope:*", skip_raise=False)
+
+    def test_serialize_error(self, repository):
+        user = UserCreate(username="u", email="e@e", full_name="F", age=1)
+        with patch.object(UserCreate, "model_dump_json", side_effect=Exception("boom")):
+            with pytest.raises(SerializationError):
+                repository._serialize(user)
+
+    def test_deserialize_unexpected_error(self, repository):
+        with patch.object(UserCreate, "model_validate_json", side_effect=Exception("boom")):
+            with pytest.raises(RepositoryError):
+                repository._deserialize("{}", UserCreate)
+
+    @pytest.mark.asyncio
+    async def test_create_result_model_error(self, connected_redis_manager) -> None:
+        class BadResult(BaseResultModel, BaseModel):
+            required_extra: int
+
+            def set_key(self, key: str) -> None:
+                self.key = key
+
+        repo = BaseRepository[UserCreate, UserUpdate, BadResult](
+            redis_manager=connected_redis_manager,
+            create_model=UserCreate,
+            update_model=UserUpdate,
+            result_model=BadResult,
+            key_prefix="bad:",
+        )
+
+        user = UserCreate(username="u", email="e@e", full_name="F", age=1)
+        with pytest.raises(RepositoryError):
+            await repo.create("k", user, skip_raise=False)
+
+    @pytest.mark.asyncio
+    async def test_create_result_model_error_skip(self, connected_redis_manager) -> None:
+        class BadResult(BaseResultModel, BaseModel):
+            required_extra: int
+
+            def set_key(self, key: str) -> None:
+                self.key = key
+
+        repo = BaseRepository[UserCreate, UserUpdate, BadResult](
+            redis_manager=connected_redis_manager,
+            create_model=UserCreate,
+            update_model=UserUpdate,
+            result_model=BadResult,
+            key_prefix="bad:",
+        )
+
+        user = UserCreate(username="u", email="e@e", full_name="F", age=1)
+        assert await repo.create("k", user) is None
+
+    @pytest.mark.asyncio
+    async def test_create_serialization_error_skip_and_raise(self, repository):
+        user = UserCreate(username="u", email="e@e", full_name="F", age=1)
+        with patch.object(UserCreate, "model_dump_json", side_effect=Exception("boom")):
+            # skip_raise=True -> None
+            assert await repository.create("k2", user) is None
+            # skip_raise=False -> raise
+            with pytest.raises(SerializationError):
+                await repository.create("k3", user, skip_raise=False)
+
+    @pytest.mark.asyncio
+    async def test_update_without_ttl_else_branch(self, repository):
+        repository.default_ttl = None
+        user = UserCreate(username="u1", email="e1@example.com", full_name="U1", age=20)
+        await repository.create("upd_no_ttl", user)
+        update_data = UserUpdate(full_name="U1 Updated")
+        result = await repository.update("upd_no_ttl", update_data)
+        assert result is not None
+        stored_user = await repository.get("upd_no_ttl")
+        assert stored_user is not None
+        assert stored_user.full_name == "U1 Updated"
+
+    @pytest.mark.asyncio
+    async def test_list_skips_none_values_from_mget(self, repository):
+        user1 = UserCreate(username="a", email="a@e", full_name="A", age=1)
+        user2 = UserCreate(username="b", email="b@e", full_name="B", age=2)
+        await repository.create("l1", user1)
+        await repository.create("l2", user2)
+
+        client = repository.redis_manager.get_client()
+        original_mget = client.mget
+
+        async def fake_mget(keys):
+            values = await original_mget(keys)
+            if values:
+                values[0] = None
+            return values
+
+        with patch.object(client, "mget", side_effect=fake_mget):
+            items = await repository.list()
+            assert len(items) == 1
+
+    @pytest.mark.asyncio
+    async def test_clear_unlink_fallback_to_delete(self, repository):
+        user1 = UserCreate(username="x", email="x@e", full_name="X", age=3)
+        user2 = UserCreate(username="y", email="y@e", full_name="Y", age=4)
+        await repository.create("c1", user1)
+        await repository.create("c2", user2)
+
+        client = repository.redis_manager.get_client()
+
+        async def fake_unlink(*_args, **_kwargs):
+            raise Exception("unlink not supported")
+
+        with patch.object(client, "unlink", side_effect=fake_unlink):
+            deleted = await repository.clear()
+            assert deleted == 2

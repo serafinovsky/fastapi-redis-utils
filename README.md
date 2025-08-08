@@ -136,12 +136,12 @@ class UpdateDemoSchema(BaseModel):
 
 
 class DemoSchema(BaseResultModel):
-    id: str | None = None
+    key: str | None = None
     field1: str
     field2: str
 
-    def set_id(self, id: str) -> None:
-        self.id = id
+    def set_key(self, key: str) -> None:
+        self.key = key
 
 
 class DemoRepository(BaseRepository[CreateDemoSchema, UpdateDemoSchema, DemoSchema]):

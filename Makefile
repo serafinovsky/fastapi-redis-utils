@@ -41,6 +41,7 @@ clean: ## Clean temporary files
 	find . -type d -name ".pytest_cache" -exec rm -rf {} +
 	find . -type f -name ".coverage" -delete
 	find . -type f -name "coverage.xml" -delete
+	find . -type d -name "htmlcov" -exec rm -rf {} +
 	find . -type f -name "bandit-report.json" -delete
 	find . -type d -name ".mypy_cache" -exec rm -rf {} +
 	find . -type d -name "dist" -exec rm -rf {} +

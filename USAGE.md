@@ -45,10 +45,10 @@ class UserUpdate(BaseModel):
 
 # Schema for result operations (inherits from BaseResultModel)
 class UserResult(UserCreate, BaseResultModel):
-    id: str | None = None
+    key: str | None = None
 
-    def set_id(self, id: str) -> None:
-        self.id = id
+    def set_key(self, key: str) -> None:
+        self.key = key
 
 
 class UserRepository(BaseRepository[UserCreate, UserUpdate, UserResult]):
