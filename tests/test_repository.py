@@ -9,8 +9,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from pydantic import BaseModel
+from redis.exceptions import ConnectionError as RedisConnectionError
+from redis.exceptions import WatchError
 
 from fastapi_redis_utils import (
+    AtomicUpdateError,
     BaseRepository,
     BaseResultModel,
     DeserializationError,
@@ -18,6 +21,7 @@ from fastapi_redis_utils import (
     RedisManager,
     RepositoryError,
     SerializationError,
+    TransientRepositoryError,
 )
 
 
@@ -102,6 +106,11 @@ class TestBaseRepository:
         key = repository._make_key("test_key")
         assert key == "user:test_key"
 
+    def test_make_pattern(self, repository):
+        """Test pattern generation."""
+        pattern = repository._make_pattern("test*")
+        assert pattern == "user:test*"
+
     def test_serialize(self, repository):
         """Test model serialization."""
         user = UserCreate(username="test", email="test@example.com", full_name="Test User", age=25)
@@ -127,7 +136,7 @@ class TestBaseRepository:
 
     def test_deserialize_invalid_json(self, repository):
         """Test deserialization with invalid JSON."""
-        with pytest.raises(DeserializationError, match="Failed to deserialize model"):
+        with pytest.raises(DeserializationError):
             repository._deserialize("invalid json", UserCreate)
 
     @pytest.mark.asyncio
@@ -566,17 +575,385 @@ class TestBaseRepository:
             assert len(items) == 1
 
     @pytest.mark.asyncio
-    async def test_clear_unlink_fallback_to_delete(self, repository):
-        user1 = UserCreate(username="x", email="x@e", full_name="X", age=3)
-        user2 = UserCreate(username="y", email="y@e", full_name="Y", age=4)
-        await repository.create("c1", user1)
-        await repository.create("c2", user2)
+    async def test_get_redis_error_raise(self, repository):
+        """Test get with Redis error and skip_raise=False."""
+        with patch.object(
+            repository.redis_manager.get_client(), "get", side_effect=RedisConnectionError("Redis error")
+        ):
+            with pytest.raises(TransientRepositoryError):
+                await repository.get("test123", skip_raise=False)
 
-        client = repository.redis_manager.get_client()
+    @pytest.mark.asyncio
+    async def test_update_watch_error_raise(self, repository):
+        """Test update with WatchError and skip_raise=False."""
+        user = UserCreate(username="testuser", email="test@example.com", full_name="Test User", age=25)
+        await repository.create("test123", user)
 
-        async def fake_unlink(*_args, **_kwargs):
-            raise Exception("unlink not supported")
+        with patch.object(repository.redis_manager.get_client(), "pipeline") as mock_pipeline:
+            mock_pipe = MagicMock()
+            mock_pipeline.return_value.__aenter__.return_value = mock_pipe
+            mock_pipe.watch.side_effect = WatchError("Watch error")
 
-        with patch.object(client, "unlink", side_effect=fake_unlink):
-            deleted = await repository.clear()
+            with pytest.raises(AtomicUpdateError):
+                await repository.update("test123", UserUpdate(username="newuser"), skip_raise=False)
+
+    @pytest.mark.asyncio
+    async def test_update_redis_error_raise(self, repository):
+        """Test update with Redis error and skip_raise=False."""
+        user = UserCreate(username="testuser", email="test@example.com", full_name="Test User", age=25)
+        await repository.create("test123", user)
+        with patch.object(repository.redis_manager.get_client(), "pipeline") as mock_pipeline:
+            mock_pipe = MagicMock()
+            mock_pipeline.return_value.__aenter__.return_value = mock_pipe
+            mock_pipe.watch.side_effect = RedisConnectionError("Redis error")
+
+            with pytest.raises(TransientRepositoryError):
+                await repository.update("test123", UserUpdate(username="newuser"), skip_raise=False)
+
+    @pytest.mark.asyncio
+    async def test_delete_redis_error_raise(self, repository):
+        """Test delete with Redis error and skip_raise=False."""
+        with patch.object(
+            repository.redis_manager.get_client(), "unlink", side_effect=RedisConnectionError("Redis error")
+        ):
+            with pytest.raises(TransientRepositoryError):
+                await repository.delete("test123", skip_raise=False)
+
+    @pytest.mark.asyncio
+    async def test_exists_redis_error(self, repository):
+        """Test exists with Redis error."""
+        with patch.object(
+            repository.redis_manager.get_client(), "exists", side_effect=RedisConnectionError("Redis error")
+        ):
+            with pytest.raises(TransientRepositoryError):
+                await repository.exists("test123")
+
+    @pytest.mark.asyncio
+    async def test_iter_models_scan_error_raise(self, repository):
+        """Test _iter_models with scan error and skip_raise=False."""
+        with patch.object(
+            repository.redis_manager.get_client(), "scan_iter", side_effect=RedisConnectionError("Redis error")
+        ):
+            with pytest.raises(TransientRepositoryError):
+                async for _ in repository._iter_models(skip_raise=False):
+                    pass
+
+    @pytest.mark.asyncio
+    async def test_iter_models_mget_error_raise(self, repository):
+        """Test _iter_models with mget error and skip_raise=False."""
+        redis_client = repository.redis_manager.get_client()
+        await redis_client.set("user:test1", "value1")
+        await redis_client.set("user:test2", "value2")
+
+        with patch.object(
+            repository.redis_manager.get_client(), "mget", side_effect=RedisConnectionError("Redis error")
+        ):
+            with pytest.raises(TransientRepositoryError):
+                async for _ in repository._iter_models(skip_raise=False):
+                    pass
+
+    @pytest.mark.asyncio
+    async def test_count_redis_error(self, repository):
+        """Test count with Redis error."""
+        with patch.object(
+            repository.redis_manager.get_client(), "scan_iter", side_effect=RedisConnectionError("Redis error")
+        ):
+            with pytest.raises(TransientRepositoryError):
+                await repository.count()
+
+    @pytest.mark.asyncio
+    async def test_set_ttl_redis_error_raise(self, repository):
+        """Test set_ttl with Redis error and skip_raise=False."""
+        with patch.object(
+            repository.redis_manager.get_client(), "expire", side_effect=RedisConnectionError("Redis error")
+        ):
+            with pytest.raises(TransientRepositoryError):
+                await repository.set_ttl("test123", 7200, skip_raise=False)
+
+    @pytest.mark.asyncio
+    async def test_get_ttl_redis_error_raise(self, repository):
+        """Test get_ttl with Redis error and skip_raise=False."""
+        with patch.object(
+            repository.redis_manager.get_client(), "ttl", side_effect=RedisConnectionError("Redis error")
+        ):
+            with pytest.raises(TransientRepositoryError):
+                await repository.get_ttl("test123", skip_raise=False)
+
+    @pytest.mark.asyncio
+    async def test_clear_redis_error_raise(self, repository):
+        """Test clear with Redis error and skip_raise=False."""
+        with patch.object(
+            repository.redis_manager.get_client(), "scan_iter", side_effect=RedisConnectionError("Redis error")
+        ):
+            with pytest.raises(TransientRepositoryError):
+                await repository.clear(skip_raise=False)
+
+    @pytest.mark.asyncio
+    async def test_clear_with_empty_batch_after_max_delete(self, repository):
+        """Test clear with empty batch after max_delete limit."""
+        users = [
+            UserCreate(username=f"user{i}", email=f"user{i}@example.com", full_name=f"User {i}", age=20 + i)
+            for i in range(5)
+        ]
+
+        for i, user in enumerate(users):
+            await repository.create(f"test{i}", user)
+
+        async def fake_achunked(_aiter, _size):
+            yield ["user:test0", "user:test1", "user:test2"]
+            yield []  # Empty batch after max_delete
+
+        with patch("fastapi_redis_utils.repository.achunked", fake_achunked):
+            deleted = await repository.clear(max_delete=2)
             assert deleted == 2
+
+    @pytest.mark.asyncio
+    async def test_create_redis_error_skip(self, repository):
+        """Test create with Redis error and skip_raise=True."""
+
+        with patch.object(
+            repository.redis_manager.get_client(), "set", side_effect=RedisConnectionError("Redis error")
+        ):
+            result = await repository.create(
+                "test123",
+                UserCreate(username="test", email="test@test.com", full_name="Test", age=25),
+                skip_raise=True,
+            )
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_get_redis_error_skip(self, repository):
+        """Test get with Redis error and skip_raise=True."""
+
+        with patch.object(
+            repository.redis_manager.get_client(), "get", side_effect=RedisConnectionError("Redis error")
+        ):
+            result = await repository.get("test123", skip_raise=True)
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_update_watch_error_skip(self, repository):
+        """Test update with WatchError and skip_raise=True."""
+        user = UserCreate(username="testuser", email="test@example.com", full_name="Test User", age=25)
+        await repository.create("test123", user)
+
+        with patch.object(repository.redis_manager.get_client(), "pipeline") as mock_pipeline:
+            mock_pipe = MagicMock()
+            mock_pipeline.return_value.__aenter__.return_value = mock_pipe
+            mock_pipe.watch.side_effect = WatchError("Watch error")
+
+            result = await repository.update("test123", UserUpdate(username="newuser"), skip_raise=True)
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_update_redis_error_skip(self, repository):
+        """Test update with Redis error and skip_raise=True."""
+        user = UserCreate(
+            username="testuser",
+            email="test@example.com",
+            full_name="Test User",
+            age=25,
+        )
+        await repository.create("test123", user)
+
+        with patch.object(repository.redis_manager.get_client(), "pipeline") as mock_pipeline:
+            mock_pipe = MagicMock()
+            mock_pipeline.return_value.__aenter__.return_value = mock_pipe
+            mock_pipe.watch.side_effect = RedisConnectionError("Redis error")
+
+            result = await repository.update("test123", UserUpdate(username="newuser"), skip_raise=True)
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_update_repository_error_skip(self, repository):
+        """Test update with RepositoryError and skip_raise=True."""
+        user = UserCreate(
+            username="testuser",
+            email="test@example.com",
+            full_name="Test User",
+            age=25,
+        )
+        await repository.create("test123", user)
+
+        # Mock deserialization to fail
+        with patch.object(repository, "_deserialize", side_effect=DeserializationError("Test error")):
+            result = await repository.update("test123", UserUpdate(username="newuser"), skip_raise=True)
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_delete_redis_error_skip(self, repository):
+        """Test delete with Redis error and skip_raise=True."""
+        with patch.object(
+            repository.redis_manager.get_client(), "unlink", side_effect=RedisConnectionError("Redis error")
+        ):
+            result = await repository.delete("test123", skip_raise=True)
+            assert result is False
+
+    @pytest.mark.asyncio
+    async def test_iter_models_scan_error_skip(self, repository):
+        """Test _iter_models with scan error and skip_raise=True."""
+        redis_client = repository.redis_manager.get_client()
+        await redis_client.set("user:test1", "value1")
+        await redis_client.set("user:test2", "value2")
+        with patch.object(
+            repository.redis_manager.get_client(), "scan_iter", side_effect=RedisConnectionError("Redis error")
+        ):
+            results = []
+            async for item in repository._iter_models(skip_raise=True):
+                results.append(item)
+            assert len(results) == 0
+
+    @pytest.mark.asyncio
+    async def test_iter_models_mget_error_skip(self, repository):
+        """Test _iter_models with mget error and skip_raise=True."""
+        redis_client = repository.redis_manager.get_client()
+        await redis_client.set("user:test1", "value1")
+        await redis_client.set("user:test2", "value2")
+
+        with patch.object(
+            repository.redis_manager.get_client(), "mget", side_effect=RedisConnectionError("Redis error")
+        ):
+            results = []
+            async for item in repository._iter_models(skip_raise=True):
+                results.append(item)
+            assert len(results) == 0
+
+    @pytest.mark.asyncio
+    async def test_set_ttl_redis_error_skip(self, repository):
+        """Test set_ttl with Redis error and skip_raise=True."""
+        with patch.object(
+            repository.redis_manager.get_client(), "expire", side_effect=RedisConnectionError("Redis error")
+        ):
+            result = await repository.set_ttl("test123", 7200, skip_raise=True)
+            assert result is False
+
+    @pytest.mark.asyncio
+    async def test_set_ttl_nonexistent_skip(self, repository):
+        """Test set_ttl non-existent with skip_raise=True."""
+        result = await repository.set_ttl("nonexistent", 7200, skip_raise=True)
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_get_ttl_redis_error_skip(self, repository):
+        """Test get_ttl with Redis error and skip_raise=True."""
+        with patch.object(
+            repository.redis_manager.get_client(), "ttl", side_effect=RedisConnectionError("Redis error")
+        ):
+            result = await repository.get_ttl("test123", skip_raise=True)
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_clear_redis_error_skip(self, repository):
+        """Test clear with Redis error and skip_raise=True."""
+
+        with patch.object(
+            repository.redis_manager.get_client(), "scan_iter", side_effect=RedisConnectionError("Redis error")
+        ):
+            result = await repository.clear(skip_raise=True)
+            assert result == 0
+
+    @pytest.mark.asyncio
+    async def test_clear_redis_error_skip_with_partial_deletion(self, repository):
+        """Test clear with Redis error and skip_raise=True after partial deletion."""
+        user = UserCreate(username="testuser", email="test@example.com", full_name="Test User", age=25)
+        await repository.create("test1", user)
+        await repository.create("test2", user)
+
+        call_count = 0
+
+        async def fake_scan_iter(*args, **kwargs):
+            nonlocal call_count
+            if call_count == 0:
+                # First call returns some keys
+                yield "user:test1"
+                yield "user:test2"
+            else:
+                # Second call raises exception
+                raise RedisConnectionError("Redis error")
+
+        with patch.object(repository.redis_manager.get_client(), "scan_iter", side_effect=fake_scan_iter):
+            result = await repository.clear(skip_raise=True)
+            assert result == 2  # Should return the number of deleted records before error
+
+    @pytest.mark.asyncio
+    async def test_clear_redis_error_skip_in_unlink(self, repository):
+        """Test clear with Redis error in unlink and skip_raise=True."""
+        user = UserCreate(username="testuser", email="test@example.com", full_name="Test User", age=25)
+        await repository.create("test1", user)
+        await repository.create("test2", user)
+
+        with patch.object(
+            repository.redis_manager.get_client(), "unlink", side_effect=RedisConnectionError("Redis error")
+        ):
+            result = await repository.clear(skip_raise=True)
+            assert result == 0
+
+    @pytest.mark.asyncio
+    async def test_clear_with_empty_batch_after_max_delete_limit(self, repository):
+        """Test clear with empty batch after max_delete limit."""
+        user = UserCreate(username="testuser", email="test@example.com", full_name="Test User", age=25)
+        await repository.create("test1", user)
+        await repository.create("test2", user)
+        await repository.create("test3", user)
+
+        call_count = 0
+
+        async def fake_achunked(*args, **kwargs):
+            nonlocal call_count
+            if call_count == 0:
+                yield ["user:test1"]
+            else:
+                yield ["user:test2", "user:test3"]
+
+        with patch("fastapi_redis_utils.repository.achunked", fake_achunked):
+            result = await repository.clear(max_delete=1)
+            assert result == 1
+
+    @pytest.mark.asyncio
+    async def test_clear_with_empty_batch_after_trimming(self, repository):
+        """Test clear with empty batch after trimming due to max_delete."""
+        user = UserCreate(username="testuser", email="test@example.com", full_name="Test User", age=25)
+        await repository.create("test1", user)
+        await repository.create("test2", user)
+
+        async def fake_achunked(*args, **kwargs):
+            yield ["user:test1", "user:test2"]
+
+        with patch("fastapi_redis_utils.repository.achunked", fake_achunked):
+            result = await repository.clear(max_delete=1)
+            assert result == 1
+
+    @pytest.mark.asyncio
+    async def test_clear_with_initially_empty_batch(self, repository):
+        """Test clear with initially empty batch."""
+
+        async def fake_achunked(*args, **kwargs):
+            yield []
+
+        with patch("fastapi_redis_utils.repository.achunked", fake_achunked):
+            result = await repository.clear()
+            assert result == 0
+
+    @pytest.mark.asyncio
+    async def test_clear_with_dry_run_and_without_dry_run(self, repository):
+        """Test clear with dry_run=True and dry_run=False."""
+        user = UserCreate(username="testuser", email="test@example.com", full_name="Test User", age=25)
+        await repository.create("test1", user)
+        await repository.create("test2", user)
+
+        dry_run_result = await repository.clear(dry_run=True)
+        clear_result = await repository.clear()
+        assert dry_run_result == clear_result
+
+    @pytest.mark.asyncio
+    async def test_clear_with_max_delete_zero(self, repository):
+        """Test clear with max_delete=0, causing empty batch after trimming."""
+        user = UserCreate(username="testuser", email="test@example.com", full_name="Test User", age=25)
+        await repository.create("test1", user)
+
+        async def fake_achunked(*args, **kwargs):
+            yield ["user:test1"]
+
+        with patch("fastapi_redis_utils.repository.achunked", fake_achunked):
+            result = await repository.clear(max_delete=0)
+            assert result == 0

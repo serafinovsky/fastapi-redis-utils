@@ -1,12 +1,14 @@
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 from .dependency import create_redis_client_dependencies
 from .exceptions import (
+    AtomicUpdateError,
     DeserializationError,
     NotFoundError,
     RepositoryError,
     ResultModelCreationError,
     SerializationError,
+    TransientRepositoryError,
 )
 from .manager import RedisManager
 from .models import BaseResultModel
@@ -22,4 +24,6 @@ __all__ = [
     "DeserializationError",
     "NotFoundError",
     "ResultModelCreationError",
+    "TransientRepositoryError",
+    "AtomicUpdateError",
 ]

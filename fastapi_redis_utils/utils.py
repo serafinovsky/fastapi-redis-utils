@@ -55,3 +55,22 @@ async def achunked(async_items: AsyncIterable[ItemType], chunk_size: int) -> Asy
 
     if batch:
         yield batch
+
+
+async def aitake(async_items: AsyncIterator[ItemType], n: int | None) -> AsyncIterator[ItemType]:
+    """Take first n items from an async iterator; if n is None, yield all.
+
+    Stops early when the iterator ends before n items.
+    """
+    if n is None:
+        async for item in async_items:
+            yield item
+        return
+    if n <= 0:
+        return
+    taken = 0
+    async for item in async_items:
+        yield item
+        taken += 1
+        if taken >= n:
+            break

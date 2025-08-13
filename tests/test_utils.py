@@ -1,6 +1,6 @@
 import pytest
 
-from fastapi_redis_utils.utils import achunked, chunked
+from fastapi_redis_utils.utils import achunked, aitake, chunked
 
 
 class TestChunkUtils:
@@ -57,3 +57,60 @@ async def test_achunked_invalid_size():
 
     with pytest.raises(ValueError):
         _ = [chunk async for chunk in achunked(gen(), 0)]
+
+
+class TestAitake:
+    @pytest.mark.asyncio
+    async def test_aitake_none_limit(self):
+        """Test aitake with None limit (yield all items)."""
+
+        async def gen():
+            for i in range(5):
+                yield i
+
+        items = [item async for item in aitake(gen(), None)]
+        assert items == [0, 1, 2, 3, 4]
+
+    @pytest.mark.asyncio
+    async def test_aitake_with_limit(self):
+        """Test aitake with specific limit."""
+
+        async def gen():
+            for i in range(10):
+                yield i
+
+        items = [item async for item in aitake(gen(), 3)]
+        assert items == [0, 1, 2]
+
+    @pytest.mark.asyncio
+    async def test_aitake_limit_greater_than_items(self):
+        """Test aitake when limit is greater than available items."""
+
+        async def gen():
+            for i in range(3):
+                yield i
+
+        items = [item async for item in aitake(gen(), 5)]
+        assert items == [0, 1, 2]
+
+    @pytest.mark.asyncio
+    async def test_aitake_zero_limit(self):
+        """Test aitake with zero limit (should yield nothing)."""
+
+        async def gen():
+            for i in range(5):
+                yield i
+
+        items = [item async for item in aitake(gen(), 0)]
+        assert items == []
+
+    @pytest.mark.asyncio
+    async def test_aitake_negative_limit(self):
+        """Test aitake with negative limit (should yield nothing)."""
+
+        async def gen():
+            for i in range(5):
+                yield i
+
+        items = [item async for item in aitake(gen(), -1)]
+        assert items == []

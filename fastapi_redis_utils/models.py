@@ -6,6 +6,6 @@ from pydantic import BaseModel
 logger = logging.getLogger(__name__)
 
 
-class BaseResultModel(ABC, BaseModel):
+class BaseResultModel(BaseModel, ABC):
     @abstractmethod
     def set_key(self, key: str) -> None: ...
