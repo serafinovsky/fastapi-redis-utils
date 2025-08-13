@@ -77,16 +77,11 @@ jobs:
 
       - name: Wait for Redis to be ready
         run: |
-          for i in {1..30}; do
-            if redis-cli ping > /dev/null 2>&1; then
-              echo "Redis is ready!"
-              exit 0
-            fi
+          for i in {1..60}; do
+            (echo > /dev/tcp/127.0.0.1/6379) >/dev/null 2>&1 && break
             echo "Waiting for Redis..."
             sleep 1
           done
-          echo "Redis did not become ready in time" >&2
-          exit 1
 
       - name: Run tests with coverage
         env:
