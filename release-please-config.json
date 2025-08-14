@@ -6,8 +6,9 @@
       "changelog-path": "CHANGELOG.md",
       "extra-files": [
         {
-          "type": "python",
-          "path": "fastapi_redis_utils/__init__.py"
+          "type": "generic",
+          "path": "fastapi_redis_utils/__init__.py",
+          "glob": false
         }
       ]
     }
