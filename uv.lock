@@ -357,7 +357,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "bandit", specifier = ">=1.8.6" },
-    { name = "fastapi", specifier = ">=0.116.1" },
+    { name = "fastapi", specifier = ">=0.113.0" },
     { name = "hatch", specifier = ">=1.14.1" },
     { name = "mypy", specifier = ">=1.17.1" },
     { name = "pytest", specifier = ">=8.4.1" },

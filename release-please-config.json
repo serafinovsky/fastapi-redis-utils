@@ -1,0 +1,15 @@
+{
+  "packages": {
+    ".": {
+      "release-type": "python",
+      "package-name": "fastapi-redis-utils",
+      "changelog-path": "CHANGELOG.md",
+      "extra-files": [
+        {
+          "type": "python",
+          "path": "fastapi_redis_utils/__init__.py"
+        }
+      ]
+    }
+  }
+}
