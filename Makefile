@@ -1,4 +1,4 @@
-.PHONY: help install test lint format clean build publish
+.PHONY: help install test lint format clean build update-deps
 
 help: ## Show help
 	@echo "Available commands:"
@@ -68,15 +68,5 @@ version: ## Show current version
 tags: ## List all git tags
 	@git tag --sort=-version:refname
 
-release: ## Create release: build, test, tag and push
-	@echo "Creating release for version $(shell uv run python -c "import fastapi_redis_utils; print(fastapi_redis_utils.__version__)")"
-	@make clean
-	@make test
-	@make publish
-	@echo "Release v$(shell uv run python -c "import fastapi_redis_utils; print(fastapi_redis_utils.__version__)") completed successfully"
-
-publish: ## Create and push git tag with current version
-	@echo "Creating git tag for version $(shell uv run python -c "import fastapi_redis_utils; print(fastapi_redis_utils.__version__)")"
-	@git tag -a v$(shell uv run python -c "import fastapi_redis_utils; print(fastapi_redis_utils.__version__)") -m "Release version $(shell uv run python -c "import fastapi_redis_utils; print(fastapi_redis_utils.__version__)")"
-	@git push origin v$(shell uv run python -c "import fastapi_redis_utils; print(fastapi_redis_utils.__version__)")
-	@echo "Tag v$(shell uv run python -c "import fastapi_redis_utils; print(fastapi_redis_utils.__version__)") created and pushed successfully"
+update-deps: ## Update dependencies and regenerate uv.lock
+	uv lock

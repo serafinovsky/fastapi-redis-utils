@@ -28,22 +28,22 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "redis>=6.2.0",
-    "pydantic>=2.11.7",
+    "redis==6.2.0",
+    "pydantic==2.11.7",
 ]
 
 [dependency-groups]
 dev = [
-    "hatch>=1.14.1",
-    "twine>=6.1.0",
-    "mypy>=1.17.1",
-    "pytest>=8.4.1",
-    "pytest-asyncio>=1.1.0",
-    "pytest-cov>=6.2.1",
-    "uvicorn>=0.35.0",
-    "fastapi>=0.113.0",
-    "ruff>=0.12.7",
-    "bandit>=1.8.6"
+    "hatch==1.14.1",
+    "twine==6.1.0",
+    "mypy==1.17.1",
+    "pytest==8.4.1",
+    "pytest-asyncio==1.1.0",
+    "pytest-cov==6.2.1",
+    "uvicorn==0.35.0",
+    "fastapi==0.113.0",
+    "ruff==0.12.7",
+    "bandit==1.8.6"
 ]
 
 [project.urls]

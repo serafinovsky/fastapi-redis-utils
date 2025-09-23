@@ -3,6 +3,8 @@
     ".": {
       "release-type": "python",
       "package-name": "fastapi-redis-utils",
+      "prerelease": false,
+      "include-component-in-tag": false,
       "changelog-path": "CHANGELOG.md",
       "extra-files": [
         {

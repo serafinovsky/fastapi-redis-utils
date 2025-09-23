@@ -1,0 +1,73 @@
+name: Setup Repository Protection
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    paths: [".github/workflows/setup-protection.yml"]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  protect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure branch protection (default branch)
+        env:
+          GH_TOKEN: ${{ secrets.REPO_ADMIN_TOKEN }}
+        run: |
+          set -euo pipefail
+          OWNER=$(gh repo view --json owner --jq '.owner.login')
+          REPO=$(gh repo view --json name --jq '.name')
+          DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name')
+
+          echo "Setting up protection for default branch: ${DEFAULT_BRANCH}"
+
+          cat > protection.json <<'JSON'
+          {
+            "required_status_checks": {
+              "strict": true,
+              "checks": [ 
+                { "context": "checks" },
+                { "context": "check-lock" }
+              ]
+            },
+            "enforce_admins": true,
+            "required_pull_request_reviews": null,
+            "restrictions": null,
+            "required_linear_history": true,
+            "allow_force_pushes": false,
+            "allow_deletions": false
+          }
+          JSON
+          gh api \
+            --method PUT \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${OWNER}/${REPO}/branches/${DEFAULT_BRANCH}/protection" \
+            --input protection.json
+
+      - name: Configure tag protection (v*)
+        env:
+          GH_TOKEN: ${{ secrets.REPO_ADMIN_TOKEN }}
+        run: |
+          set -euo pipefail
+          OWNER=$(gh repo view --json owner --jq '.owner.login')
+          REPO=$(gh repo view --json name --jq '.name')
+          set +e
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${OWNER}/${REPO}/tags/protection" \
+            -f pattern='v*'
+          RC=$?
+          set -e
+          if [ "$RC" -ne 0 ]; then
+            echo "Tag protection may already exist; continuing."
+          fi

@@ -3,15 +3,11 @@ updates:
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
     commit-message:
       prefix: "fix"
       include: "scope"
-
-  - package-ecosystem: "uv"
-    directory: "/"
-    schedule:
-      interval: "daily"
-    commit-message:
-      prefix: "fix"
-      include: "scope"
+    groups:
+      all-pip-deps:
+        patterns:
+          - "*"
