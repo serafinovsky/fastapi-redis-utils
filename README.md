@@ -1,6 +1,6 @@
 # FastAPI Redis Utils
 
-[![CI/CD](https://img.shields.io/github/actions/workflow/status/serafinovsky/fastapi-redis-utils/ci.yml)](https://github.com/serafinovsky/fastapi-redis-utils/actions/workflows/ci.yml)
+[![CI/CD](https://img.shields.io/github/actions/workflow/status/serafinovsky/fastapi-redis-utils/ci.yml)](https://github.com/serafinovsky/fastapi-redis-utils/actions/workflows/release-please.yml)
 [![codecov](https://codecov.io/gh/serafinovsky/fastapi-redis-utils/branch/main/graph/badge.svg)](https://codecov.io/gh/serafinovsky/fastapi-redis-utils)
 [![PyPI](https://img.shields.io/pypi/v/fastapi-redis-utils.svg)](https://pypi.org/project/fastapi-redis-utils/)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/serafinovsky/fastapi-redis-utils)](https://github.com/serafinovsky/fastapi-redis-utils/releases)
