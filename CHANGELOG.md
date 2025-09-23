@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.5](https://github.com/serafinovsky/fastapi-redis-utils/compare/v1.2.4...v1.2.5) (2025-09-23)
+
+
+### Bug Fixes
+
+* fix publish ([#8](https://github.com/serafinovsky/fastapi-redis-utils/issues/8)) ([7b5bf01](https://github.com/serafinovsky/fastapi-redis-utils/commit/7b5bf017a3e55b3edf732c33304666682aaa7741))
+
 ## [1.2.4](https://github.com/serafinovsky/fastapi-redis-utils/compare/v1.2.3...v1.2.4) (2025-09-23)
 
 
