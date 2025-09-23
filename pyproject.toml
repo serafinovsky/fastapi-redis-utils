@@ -28,21 +28,21 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "redis==6.2.0",
-    "pydantic==2.11.7",
+    "redis==6.4.0",
+    "pydantic==2.11.9",
 ]
 
 [dependency-groups]
 dev = [
     "hatch==1.14.1",
-    "twine==6.1.0",
-    "mypy==1.17.1",
-    "pytest==8.4.1",
-    "pytest-asyncio==1.1.0",
-    "pytest-cov==6.2.1",
-    "uvicorn==0.35.0",
-    "fastapi==0.113.0",
-    "ruff==0.12.7",
+    "twine==6.2.0",
+    "mypy==1.18.2",
+    "pytest==8.4.2",
+    "pytest-asyncio==1.2.0",
+    "pytest-cov==7.0.0",
+    "uvicorn==0.36.0",
+    "fastapi==0.117.1",
+    "ruff==0.13.1",
     "bandit==1.8.6"
 ]
 
