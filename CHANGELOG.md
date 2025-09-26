@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.0.0](https://github.com/serafinovsky/fastapi-redis-utils/compare/v1.2.5...v2.0.0) (2025-09-26)
+
+
+### ⚠ BREAKING CHANGES
+
+* 
+
+### Features
+
+* remove ensure_connection; pure health_check; simplify get_ttl; DRY mget; update docs/tests ([#11](https://github.com/serafinovsky/fastapi-redis-utils/issues/11)) ([16eb3f5](https://github.com/serafinovsky/fastapi-redis-utils/commit/16eb3f595c8e31ec0891a4ae64cb9fab129d29c7))
+
 ## [1.2.5](https://github.com/serafinovsky/fastapi-redis-utils/compare/v1.2.4...v1.2.5) (2025-09-23)
 
 
