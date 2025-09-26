@@ -182,7 +182,7 @@ class TestBaseRepository:
         stored_user = await repository.get("test_key")
         assert stored_user is not None
         ttl = await repository.get_ttl("test_key")
-        assert ttl == -1  # No TTL set
+        assert ttl is None  # No TTL set
 
     @pytest.mark.asyncio
     async def test_get_existing(self, repository):

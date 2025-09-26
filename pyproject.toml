@@ -28,8 +28,8 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "redis==6.4.0",
-    "pydantic==2.11.9",
+    "redis>=6.4,<7",
+    "pydantic>=2.11,<3",
 ]
 
 [dependency-groups]
@@ -59,6 +59,10 @@ path = "fastapi_redis_utils/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["fastapi_redis_utils"]
+include = [
+    "fastapi_redis_utils/py.typed",
+]
+
 
 [tool.ruff]
 target-version = "py311"

@@ -1,5 +1,78 @@
 # Usage Guide
 
+## Quick Usage
+
+Install
+
+```bash
+uv add fastapi-redis-utils
+```
+
+Initialize and integrate with FastAPI
+
+```python
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Depends
+import redis.asyncio as redis
+from fastapi_redis_utils import RedisManager, create_redis_client_dependencies
+
+redis_manager = RedisManager(dsn="redis://localhost:6379")
+get_redis_client = create_redis_client_dependencies(redis_manager)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await redis_manager.connect()
+    try:
+        yield
+    finally:
+        await redis_manager.close()
+
+app = FastAPI(lifespan=lifespan)
+
+@app.get("/cache/{key}")
+async def get_cached(key: str, client: redis.Redis = Depends(get_redis_client)) -> dict[str, str | None]:
+    value = await client.get(key)
+    return {"key": key, "value": value}
+```
+
+See a complete FastAPI integration example here: [FastAPI Integration Example](https://github.com/serafinovsky/fastapi-redis-utils/blob/main/examples/fastapi_integration.py)
+
+Using BaseRepository (Create/Update/Result schemas)
+
+```python
+from pydantic import BaseModel
+from fastapi_redis_utils import BaseRepository, BaseResultModel
+
+class UserCreate(BaseModel):
+    username: str
+    email: str
+
+class UserUpdate(BaseModel):
+    username: str | None = None
+    email: str | None = None
+
+class UserResult(UserCreate, BaseResultModel):
+    key: str | None = None
+    def set_key(self, key: str) -> None: self.key = key
+
+user_repo = BaseRepository[UserCreate, UserUpdate, UserResult](
+    redis_manager, UserCreate, UserUpdate, UserResult
+)
+
+# Create, Get, Update
+await user_repo.create("john", UserCreate(username="john", email="j@example.com"))
+user = await user_repo.get("john")
+updated = await user_repo.update("john", UserUpdate(email="john@example.com"))
+```
+
+Error handling
+
+- skip_raise (default True):
+  - On errors, methods return None/False instead of raising.
+- Set skip_raise=False to raise domain exceptions:
+  - create/get/update/delete: RepositoryError subclasses (e.g., NotFoundError, DeserializationError, AtomicUpdateError, TransientRepositoryError).
+
 ## BaseRepository with Triple Schema Support
 
 The `BaseRepository` now supports separate schemas for create, update, and result operations, providing better type safety and more flexible data handling.
@@ -115,8 +188,7 @@ updated_user = await user_repo.update("john_doe", update_data)
 ### FastAPI Integration
 
 ```python
-from fastapi import FastAPI, Depends
-from typing import Optional
+from fastapi import FastAPI
 
 app = FastAPI()
 

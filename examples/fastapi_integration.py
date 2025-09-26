@@ -39,7 +39,6 @@ def get_redis_url() -> str:
 redis_manager = RedisManager(
     dsn=get_redis_url(),
     max_connections=20,
-    retry_attempts=3,
 )
 
 

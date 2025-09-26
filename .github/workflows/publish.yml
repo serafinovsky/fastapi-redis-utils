@@ -24,6 +24,14 @@ jobs:
         with:
           version: latest
 
+      - name: Cache uv and venv
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            .venv
+          key: uv-${{ runner.os }}-${{ hashFiles('**/uv.lock') }}-py311
+
       - name: Update dependencies
         run: uv lock
 

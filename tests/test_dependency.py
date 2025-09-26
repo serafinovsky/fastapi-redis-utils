@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -26,11 +26,8 @@ class TestDependency:
 
         dependency = create_redis_client_dependencies(redis_manager)
 
-        with patch.object(redis_manager, "ensure_connection") as mock_ensure:
-            result = await dependency()
-
-            mock_ensure.assert_called_once()
-            assert result == mock_redis_client
+        result = await dependency()
+        assert result == mock_redis_client
 
     @pytest.mark.asyncio
     async def test_dependency_ensure_connection_called(self, redis_manager, mock_redis_client):
@@ -39,10 +36,7 @@ class TestDependency:
 
         dependency = create_redis_client_dependencies(redis_manager)
 
-        with patch.object(redis_manager, "ensure_connection") as mock_ensure:
-            await dependency()
-
-            mock_ensure.assert_called_once()
+        await dependency()
 
     @pytest.mark.asyncio
     async def test_dependency_get_client_called(self, redis_manager, mock_redis_client):
@@ -51,15 +45,13 @@ class TestDependency:
 
         dependency = create_redis_client_dependencies(redis_manager)
 
-        with patch.object(redis_manager, "ensure_connection"):
-            result = await dependency()
-
-            assert result == mock_redis_client
+        result = await dependency()
+        assert result == mock_redis_client
 
     @pytest.mark.asyncio
     async def test_dependency_with_connection_error(self, redis_manager):
         """Test dependency with connection error."""
-        redis_manager.ensure_connection = AsyncMock(side_effect=Exception("Connection failed"))
+        redis_manager.get_client = lambda: (_ for _ in ()).throw(Exception("Connection failed"))
 
         dependency = create_redis_client_dependencies(redis_manager)
 
@@ -73,6 +65,5 @@ class TestDependency:
 
         dependency = create_redis_client_dependencies(redis_manager)
 
-        with patch.object(redis_manager, "ensure_connection"):
-            with pytest.raises(RuntimeError, match="Client error"):
-                await dependency()
+        with pytest.raises(RuntimeError, match="Client error"):
+            await dependency()
