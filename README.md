@@ -67,7 +67,6 @@ redis_manager = RedisManager(
 # Create FastAPI dependency
 get_redis_client = create_redis_client_dependencies(redis_manager)
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await redis_manager.connect()
