@@ -32,8 +32,6 @@ def redis_manager(get_redis_url: str):
     return RedisManager(
         dsn=get_redis_url,
         max_connections=10,
-        retry_attempts=5,
-        retry_delay=0.5,
     )
 
 
@@ -43,8 +41,6 @@ async def connected_redis_manager(get_redis_url: str):
     manager = RedisManager(
         dsn=get_redis_url,
         max_connections=10,
-        retry_attempts=5,
-        retry_delay=0.5,
     )
 
     try:

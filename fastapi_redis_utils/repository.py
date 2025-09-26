@@ -1,8 +1,9 @@
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterable
 from typing import Generic, TypeVar
 
 from pydantic import BaseModel, ValidationError
+from redis.asyncio import Redis
 from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import TimeoutError as RedisTimeoutError
 from redis.exceptions import WatchError
@@ -18,7 +19,7 @@ from .exceptions import (
 )
 from .manager import RedisManager
 from .models import BaseResultModel
-from .utils import achunked, aitake, chunked
+from .utils import achunked, aitake
 
 logger = logging.getLogger(__name__)
 
@@ -208,6 +209,33 @@ class BaseRepository(Generic[CreateSchemaType, UpdateSchemaType, ResultSchemaTyp
             result.append(model)
         return result
 
+    async def _iter_mget_batch(
+        self,
+        redis_client: Redis,
+        keys: Iterable[str],
+        *,
+        skip_raise: bool,
+    ) -> AsyncIterator[ResultSchemaType]:
+        try:
+            values = await redis_client.mget(keys)
+        except (RedisConnectionError, RedisTimeoutError) as e:
+            if skip_raise:
+                return
+            raise TransientRepositoryError("Transient Redis error during list (mget)") from e
+
+        for key, value in zip(keys, values, strict=False):
+            if value is None:
+                continue
+            try:
+                raw_key = key.removeprefix(self.key_prefix)
+                stored_model = self._deserialize(value, self.create_model)
+                yield self._create_result_model(stored_model, raw_key)
+            except RepositoryError as e:
+                logger.warning(f"Failed to deserialize data for key {key}: {e}")
+                if not skip_raise:
+                    raise
+                continue
+
     async def _iter_models(
         self,
         *,
@@ -218,38 +246,24 @@ class BaseRepository(Generic[CreateSchemaType, UpdateSchemaType, ResultSchemaTyp
         redis_client = self.redis_manager.get_client()
         full_pattern = self._make_pattern(pattern)
 
-        buffer_keys: list[str] = []
+        batch: list[str] = []
         try:
             async for found_key in redis_client.scan_iter(match=full_pattern, count=1000):
-                buffer_keys.append(found_key)
+                batch.append(found_key)
+                if len(batch) >= mget_chunk_size:
+                    async for item in self._iter_mget_batch(redis_client, batch, skip_raise=skip_raise):
+                        yield item
+                    batch = []
         except (RedisConnectionError, RedisTimeoutError) as e:
             if skip_raise:
                 return
             raise TransientRepositoryError("Transient Redis error during list (scan_iter)") from e
 
-        if not buffer_keys:
+        if not batch:
             return
 
-        for chunk_keys in chunked(buffer_keys, mget_chunk_size):
-            try:
-                values = await redis_client.mget(chunk_keys)
-            except (RedisConnectionError, RedisTimeoutError) as e:
-                if skip_raise:
-                    return
-                raise TransientRepositoryError("Transient Redis error during list (mget)") from e
-
-            for key, value in zip(chunk_keys, values, strict=False):
-                if value is None:
-                    continue
-                try:
-                    raw_key = key.removeprefix(self.key_prefix)
-                    stored_model = self._deserialize(value, self.create_model)
-                    yield self._create_result_model(stored_model, raw_key)
-                except RepositoryError as e:
-                    logger.warning(f"Failed to deserialize data for key {key}: {e}")
-                    if not skip_raise:
-                        raise
-                    continue
+        async for item in self._iter_mget_batch(redis_client, batch, skip_raise=skip_raise):
+            yield item
 
     async def count(self, pattern: str = "*") -> int:
         redis_client = self.redis_manager.get_client()
@@ -285,10 +299,13 @@ class BaseRepository(Generic[CreateSchemaType, UpdateSchemaType, ResultSchemaTyp
             if skip_raise:
                 return None
             raise TransientRepositoryError("Transient Redis error during get_ttl") from e
+        # Redis semantics: -2 = key does not exist, -1 = no TTL set
         if ttl == -2:
             if skip_raise:
                 return None
             raise NotFoundError(f"Record not found for key: {full_key}")
+        if ttl == -1:
+            return None
         return ttl
 
     async def clear(

@@ -23,6 +23,14 @@ jobs:
         with:
           version: latest
 
+      - name: Cache uv and venv
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            .venv
+          key: uv-${{ runner.os }}-${{ hashFiles('**/uv.lock') }}-py311
+
       - name: Update dependencies
         run: uv lock
 
@@ -34,7 +42,7 @@ jobs:
           uv run ruff check . --preview
           uv run ruff format . --check
           uv run mypy .
-          uv run bandit -r fasrapi_redis_utils -lll
+          uv run bandit -r fastapi_redis_utils -lll
 
   test:
     runs-on: ubuntu-latest
@@ -66,6 +74,14 @@ jobs:
         uses: astral-sh/setup-uv@v1
         with:
           version: latest
+
+      - name: Cache uv and venv
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            .venv
+          key: uv-${{ runner.os }}-${{ hashFiles('**/uv.lock') }}-py${{ matrix.python-version }}
 
       - name: Update dependencies
         run: uv lock

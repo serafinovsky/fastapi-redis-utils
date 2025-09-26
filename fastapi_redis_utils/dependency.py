@@ -17,8 +17,7 @@ def create_redis_client_dependencies(redis_manager: RedisManager) -> Callable[[]
     """
 
     async def get_redis_client() -> redis.Redis:
-        """Dependency to get Redis client instance with connection validation"""
-        await redis_manager.ensure_connection()
+        """Dependency to get Redis client instance"""
         return redis_manager.get_client()
 
     return get_redis_client

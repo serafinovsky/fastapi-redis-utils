@@ -1,6 +1,6 @@
 # FastAPI Redis Utils
 
-[![CI/CD](https://img.shields.io/github/actions/workflow/status/serafinovsky/fastapi-redis-utils/ci.yml)](https://github.com/serafinovsky/fastapi-redis-utils/actions/workflows/release-please.yml)
+[![Publish](https://img.shields.io/github/actions/workflow/status/serafinovsky/fastapi-redis-utils/release-please.yml)](https://github.com/serafinovsky/fastapi-redis-utils/actions/workflows/release-please.yml)
 [![codecov](https://codecov.io/gh/serafinovsky/fastapi-redis-utils/branch/main/graph/badge.svg)](https://codecov.io/gh/serafinovsky/fastapi-redis-utils)
 [![PyPI](https://img.shields.io/pypi/v/fastapi-redis-utils.svg)](https://pypi.org/project/fastapi-redis-utils/)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/serafinovsky/fastapi-redis-utils)](https://github.com/serafinovsky/fastapi-redis-utils/releases)
@@ -14,7 +14,7 @@
 
 This library provides everything you need to quickly integrate Redis with FastAPI:
 
-- **RedisManager** - Async Redis manager with connection pooling and retry mechanism
+- **RedisManager** - Async Redis manager with connection pooling
 - **FastAPI Dependencies** - Ready-to-use dependencies for Redis injection into your endpoints
 - **BaseRepository** - CRUD operations with Pydantic models for rapid development
 
@@ -22,18 +22,17 @@ Perfect for caching, session storage, and data persistence in FastAPI applicatio
 
 ## Features
 
-- 🔌 **FastAPI Integration** - Ready-to-use dependencies for Redis injection
-- 🏃 **Async Support** - Full async/await capabilities
-- 📦 **Connection Management** - Efficient connection pooling
-- 🔄 **Auto-retry** - Automatic retry on connection failures
-- 🏥 **Monitoring** - Built-in connection health checks
-- 🛡️ **Type Hints** - Complete typing support
-- 📝 **Pydantic Models** - Base repository with Pydantic support
+- **FastAPI Integration** - Ready-to-use dependencies for Redis injection
+- **Async Support** - Full async/await capabilities
+- **Connection Management** - Efficient connection pooling
+- **Monitoring** - Built-in connection health checks
+- **Type Hints** - Complete typing support
+- **Pydantic Models** - Base repository with Pydantic support
 
 ## Documentation
 
-- 📖 **[Usage Guide](https://github.com/serafinovsky/fastapi-redis-utils/blob/main/USAGE.md)** - Detailed usage examples and advanced features
-- 🚀 **[FastAPI Integration Example](https://github.com/serafinovsky/fastapi-redis-utils/blob/main/examples/fastapi_integration.py)** - Complete FastAPI application with Redis integration
+- **[Usage Guide](https://github.com/serafinovsky/fastapi-redis-utils/blob/main/USAGE.md)**
+- **[FastAPI Integration Example](https://github.com/serafinovsky/fastapi-redis-utils/blob/main/examples/fastapi_integration.py)** - Complete FastAPI application with Redis integration
 
 ## Installation
 
@@ -49,24 +48,16 @@ uv add fastapi-redis-utils
 uv add git+https://github.com/serafinovsky/fastapi-redis-utils.git
 ```
 
-### For development
-
-```bash
-git clone https://github.com/serafinovsky/fastapi-redis-utils.git
-cd fastapi-redis-utils
-uv sync --dev
-```
-
 ## Quick Start
 
 ### FastAPI Integration
 
 ```python
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Depends
 from fastapi_redis_utils import RedisManager, create_redis_client_dependencies
 import redis.asyncio as redis
-
-app = FastAPI()
 
 # Create Redis manager
 redis_manager = RedisManager(
@@ -77,17 +68,15 @@ redis_manager = RedisManager(
 get_redis_client = create_redis_client_dependencies(redis_manager)
 
 
-@app.on_event("startup")
-async def startup_event():
-    """Connect to Redis on application startup"""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     await redis_manager.connect()
+    try:
+        yield
+    finally:
+        await redis_manager.close()
 
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Close connection on application shutdown"""
-    await redis_manager.close()
-
+app = FastAPI(lifespan=lifespan)
 
 @app.get("/cache/{key}")
 async def get_cached_data(key: str, redis_client: redis.Redis = Depends(get_redis_client)):
@@ -118,12 +107,30 @@ async def health_check():
 
 ```python
 import uuid
+
+from contextlib import asynccontextmanager
 from uuid import UUID
+
 from fastapi import HTTPException, status
+from fastapi_redis_utils import BaseRepository, BaseResultModel
+from fastapi import FastAPI
+from fastapi_redis_utils import RedisManager
 from pydantic import BaseModel
-from typing import Optional
-from datetime import datetime
-from fastapi_redis_utils import BaseRepository, RedisManager, BaseResultModel
+
+# Create Redis manager
+redis_manager = RedisManager(
+    dsn="redis://localhost:6379"
+)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await redis_manager.connect()
+    try:
+        yield
+    finally:
+        await redis_manager.close()
+
+app = FastAPI(lifespan=lifespan)
 
 class CreateDemoSchema(BaseModel):
     field1: str
@@ -167,7 +174,6 @@ async def get_demo(demo_id: UUID) -> DemoSchema:
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Demo record with ID '{demo_id}' not found",
         )
-
     return demo
 
 
@@ -208,33 +214,16 @@ async def check_demo_exists(demo_id: UUID) -> dict[str, UUID | bool]:
     return {"id": demo_id, "exists": exists}
 ```
 
-### Executing Operations with Retry
-
-```python
-async def complex_operation():
-    async def operation():
-        client = redis_manager.get_client()
-        # Complex Redis operation
-        result = await client.execute_command("COMPLEX_COMMAND")
-        return result
-
-    # Automatic retries on failures
-    result = await redis_manager.execute_with_retry(operation)
-    return result
-```
-
 ## Configuration
 
 ### RedisManager Parameters
 
-| Parameter                | Type  | Default | Description                           |
-| ------------------------ | ----- | ------- | ------------------------------------- |
-| `dsn`                    | str   | `-`     | DSN for Redis connection              |
-| `max_connections`        | int   | `20`    | Maximum number of connections in pool |
-| `retry_attempts`         | int   | `3`     | Number of reconnection attempts       |
-| `retry_delay`            | float | `1.0`   | Base delay between attempts (seconds) |
-| `socket_connect_timeout` | int   | `5`     | Socket connection timeout (seconds)   |
-| `socket_timeout`         | int   | `5`     | Socket operation timeout (seconds)    |
+| Parameter                | Type | Default | Description                           |
+| ------------------------ | ---- | ------- | ------------------------------------- |
+| `dsn`                    | str  | `-`     | DSN for Redis connection              |
+| `max_connections`        | int  | `20`    | Maximum number of connections in pool |
+| `socket_connect_timeout` | int  | `5`     | Socket connection timeout (seconds)   |
+| `socket_timeout`         | int  | `5`     | Socket operation timeout (seconds)    |
 
 ## API Reference
 
@@ -244,12 +233,10 @@ Main class for managing Redis connections.
 
 #### Methods
 
-- `connect()` - Connect to Redis with retry mechanism
-- `ensure_connection()` - Ensure connection availability
+- `connect()` - Connect to Redis
 - `close()` - Close connection and cleanup resources
 - `health_check()` - Check connection status
 - `get_client()` - Get Redis client
-- `execute_with_retry()` - Execute operations with retry
 
 ### create_redis_client_dependencies
 
@@ -282,59 +269,6 @@ Base repository class for working with Pydantic models in Redis. Supports separa
 
 The `update` method performs partial updates - only fields that are set in the update schema will be modified. Fields with `None` values are ignored.
 
-## Development
+---
 
-### Install development dependencies
-
-```bash
-make dev-setup
-```
-
-### Run tests
-
-```bash
-make test
-```
-
-### Code checks
-
-```bash
-make check
-```
-
-### Build package
-
-```bash
-make build
-```
-
-### Makefile Commands
-
-The project includes convenient Makefile commands for development. Use help for more details:
-
-```bash
-make help
-```
-
-### Release Workflow
-
-1. Update version in `fastapi_redis_utils/__init__.py`
-2. Run full release: `make release`
-3. Or step by step:
-
-```bash
-make check         # Run tests
-make publish       # Create and push tag
-```
-
-## License
-
-MIT License - see [LICENSE](LICENSE) file for details.
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Repository initiated with [serafinovsky/cookiecutter-python-package](https://github.com/serafinovsky/cookiecutter-python-package)
