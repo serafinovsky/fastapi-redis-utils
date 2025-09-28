@@ -1,19 +1,10 @@
 """Integration tests for FastAPI example application."""
 
 import uuid
-from uuid import UUID
 
-import pytest
 from fastapi.testclient import TestClient
 
-from examples.fastapi_integration import (
-    CreateDemoSchema,
-    DemoSchema,
-    UpdateDemoSchema,
-    app,
-    demo_crud,
-    redis_manager,
-)
+from examples.fastapi_integration import CreateDemoSchema, UpdateDemoSchema, app
 
 
 class TestExampleAppIntegration:
@@ -41,34 +32,34 @@ class TestExampleAppIntegration:
         with TestClient(app) as client:
             key = "test_dependency_key"
             value = "test_dependency_value"
-            
+
             # Create
             response = client.post(f"/depends/{key}", params={"value": value})
             assert response.status_code == 200
             data = response.json()
             assert data["key"] == key
             assert data["value"] == value
-            
+
             # Read
             response = client.get(f"/depends/{key}")
             assert response.status_code == 200
             data = response.json()
             assert data["key"] == key
             assert data["value"] == value
-            
+
             # Check exists
             response = client.get(f"/depends/{key}/exists")
             assert response.status_code == 200
             data = response.json()
             assert data["key"] == key
             assert data["exists"] is True
-            
+
             # Delete
             response = client.delete(f"/depends/{key}")
             assert response.status_code == 200
             data = response.json()
             assert data["key"] == key
-            
+
             # Verify deletion
             response = client.get(f"/depends/{key}")
             assert response.status_code == 404
@@ -100,7 +91,7 @@ class TestExampleAppIntegration:
             demo_id = created_demo["key"]
             assert created_demo["field1"] == "test_field1"
             assert created_demo["field2"] == "test_field2"
-            
+
             # Read
             response = client.get(f"/repo/{demo_id}")
             assert response.status_code == 200
@@ -108,7 +99,7 @@ class TestExampleAppIntegration:
             assert demo["key"] == demo_id
             assert demo["field1"] == "test_field1"
             assert demo["field2"] == "test_field2"
-            
+
             # Update
             update_data = UpdateDemoSchema(field1="updated_field1")
             response = client.put(f"/repo/{demo_id}", json=update_data.model_dump(exclude_unset=True))
@@ -117,20 +108,20 @@ class TestExampleAppIntegration:
             assert updated_demo["key"] == demo_id
             assert updated_demo["field1"] == "updated_field1"
             assert updated_demo["field2"] == "test_field2"  # unchanged
-            
+
             # Check exists
             response = client.get(f"/repo/{demo_id}/exists")
             assert response.status_code == 200
             data = response.json()
             assert data["id"] == demo_id
             assert data["exists"] is True
-            
+
             # Delete
             response = client.delete(f"/repo/{demo_id}")
             assert response.status_code == 200
             data = response.json()
             assert data["id"] == demo_id
-            
+
             # Verify deletion
             response = client.get(f"/repo/{demo_id}")
             assert response.status_code == 404
@@ -146,13 +137,13 @@ class TestExampleAppIntegration:
                 assert response.status_code == 201
                 demo = response.json()
                 demo_ids.append(demo["key"])
-            
+
             # List all records
             response = client.get("/repo/")
             assert response.status_code == 200
             demos = response.json()
             assert len(demos) >= 3
-            
+
             # Verify all created records are in the list
             demo_keys = [demo["key"] for demo in demos]
             for demo_id in demo_ids:
@@ -166,7 +157,7 @@ class TestExampleAppIntegration:
                 create_data = CreateDemoSchema(field1=f"test_field1_{i}", field2=f"test_field2_{i}")
                 response = client.post("/repo/", json=create_data.model_dump())
                 assert response.status_code == 201
-            
+
             # List with limit
             response = client.get("/repo/?limit=3")
             assert response.status_code == 200
@@ -177,26 +168,26 @@ class TestExampleAppIntegration:
         """Test demo repository operations with non-existent records."""
         with TestClient(app) as client:
             fake_id = str(uuid.uuid4())
-            
+
             # Get non-existent
             response = client.get(f"/repo/{fake_id}")
             assert response.status_code == 404
             data = response.json()
             assert "not found" in data["detail"]
-            
+
             # Update non-existent
             update_data = UpdateDemoSchema(field1="updated")
             response = client.put(f"/repo/{fake_id}", json=update_data.model_dump(exclude_unset=True))
             assert response.status_code == 404
             data = response.json()
             assert "not found" in data["detail"]
-            
+
             # Delete non-existent
             response = client.delete(f"/repo/{fake_id}")
             assert response.status_code == 404
             data = response.json()
             assert "not found" in data["detail"]
-            
+
             # Check exists for non-existent
             response = client.get(f"/repo/{fake_id}/exists")
             assert response.status_code == 200
@@ -210,7 +201,7 @@ class TestExampleAppIntegration:
             # Invalid create data (missing required fields)
             response = client.post("/repo/", json={"field1": "test"})  # missing field2
             assert response.status_code == 422
-            
+
             # Invalid update data (wrong types)
             demo_id = str(uuid.uuid4())
             response = client.put(f"/repo/{demo_id}", json={"field1": 123})  # wrong type
@@ -224,7 +215,7 @@ class TestExampleAppIntegration:
             response = client.post("/repo/", json=create_data.model_dump())
             assert response.status_code == 201
             demo_id = response.json()["key"]
-            
+
             # Partial update (only field1)
             update_data = UpdateDemoSchema(field1="updated_field1")
             response = client.put(f"/repo/{demo_id}", json=update_data.model_dump(exclude_unset=True))
@@ -232,7 +223,7 @@ class TestExampleAppIntegration:
             updated_demo = response.json()
             assert updated_demo["field1"] == "updated_field1"
             assert updated_demo["field2"] == "original_field2"  # unchanged
-            
+
             # Partial update (only field2)
             update_data = UpdateDemoSchema(field2="updated_field2")
             response = client.put(f"/repo/{demo_id}", json=update_data.model_dump(exclude_unset=True))
