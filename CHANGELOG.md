@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.2](https://github.com/serafinovsky/fastapi-redis-utils/compare/v2.0.1...v2.0.2) (2025-09-30)
+
+
+### Bug Fixes
+
+* **deps:** bump fastapi from 0.117.1 to 0.118.0 in the all-pip-deps group ([#16](https://github.com/serafinovsky/fastapi-redis-utils/issues/16)) ([8865e7b](https://github.com/serafinovsky/fastapi-redis-utils/commit/8865e7bfbef5f36953ca34959fd5a9c71643fb8a))
+
 ## [2.0.1](https://github.com/serafinovsky/fastapi-redis-utils/compare/v2.0.0...v2.0.1) (2025-09-28)
 
 
