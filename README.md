@@ -3,6 +3,7 @@
 [![Publish](https://img.shields.io/github/actions/workflow/status/serafinovsky/fastapi-redis-utils/release-please.yml)](https://github.com/serafinovsky/fastapi-redis-utils/actions/workflows/release-please.yml)
 [![codecov](https://codecov.io/gh/serafinovsky/fastapi-redis-utils/branch/main/graph/badge.svg)](https://codecov.io/gh/serafinovsky/fastapi-redis-utils)
 [![PyPI](https://img.shields.io/pypi/v/fastapi-redis-utils.svg)](https://pypi.org/project/fastapi-redis-utils/)
+[![Downloads](https://pepy.tech/badge/fastapi-redis-utils)](https://pepy.tech/project/fastapi-redis-utils)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/serafinovsky/fastapi-redis-utils)](https://github.com/serafinovsky/fastapi-redis-utils/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Python Versions](https://img.shields.io/pypi/pyversions/fastapi-redis-utils)
