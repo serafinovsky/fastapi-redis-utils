@@ -42,7 +42,7 @@ dev = [
     "pytest-cov==7.0.0",
     "uvicorn==0.37.0",
     "fastapi==0.118.0",
-    "ruff==0.13.2",
+    "ruff==0.13.3",
     "bandit==1.8.6"
 ]
 
