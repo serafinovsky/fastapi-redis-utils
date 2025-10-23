@@ -34,15 +34,15 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "hatch==1.14.2",
+    "hatch==1.15.1",
     "twine==6.2.0",
     "mypy==1.18.2",
     "pytest==8.4.2",
     "pytest-asyncio==1.2.0",
     "pytest-cov==7.0.0",
-    "uvicorn==0.37.0",
-    "fastapi==0.118.2",
-    "ruff==0.14.0",
+    "uvicorn==0.38.0",
+    "fastapi==0.119.1",
+    "ruff==0.14.1",
     "bandit==1.8.6"
 ]
 
