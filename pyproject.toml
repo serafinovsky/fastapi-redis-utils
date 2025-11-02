@@ -28,7 +28,7 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "redis>=6.4,<7",
+    "redis>=6.4,<8",
     "pydantic>=2.11,<3",
 ]
 
@@ -41,8 +41,8 @@ dev = [
     "pytest-asyncio==1.2.0",
     "pytest-cov==7.0.0",
     "uvicorn==0.38.0",
-    "fastapi==0.119.1",
-    "ruff==0.14.1",
+    "fastapi==0.120.0",
+    "ruff==0.14.2",
     "bandit==1.8.6"
 ]
 
