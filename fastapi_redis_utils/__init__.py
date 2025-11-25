@@ -1,4 +1,4 @@
-__version__ = "2.0.7"
+__version__ = "2.0.8"
 
 from .dependency import create_redis_client_dependencies
 from .exceptions import (
