@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.11](https://github.com/serafinovsky/fastapi-redis-utils/compare/v2.0.10...v2.0.11) (2026-01-27)
+
+
+### Bug Fixes
+
+* **deps-dev:** bump the all-pip-deps group with 6 updates ([#42](https://github.com/serafinovsky/fastapi-redis-utils/issues/42)) ([0ba184b](https://github.com/serafinovsky/fastapi-redis-utils/commit/0ba184b80cd1f274463839d0b189ee9db70812ba))
+
 ## [2.0.10](https://github.com/serafinovsky/fastapi-redis-utils/compare/v2.0.9...v2.0.10) (2025-12-12)
 
 
