@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.0.15](https://github.com/serafinovsky/fastapi-redis-utils/compare/v2.0.14...v2.0.15) (2026-05-24)
+
+
+### Bug Fixes
+
+* **deps-dev:** bump the all-pip-deps group across 1 directory with 3 updates ([#65](https://github.com/serafinovsky/fastapi-redis-utils/issues/65)) ([d3497b3](https://github.com/serafinovsky/fastapi-redis-utils/commit/d3497b30e4d0b1c68121b07100dab433f3a3ce14))
+* **deps-dev:** bump the all-pip-deps group across 1 directory with 4 updates ([#62](https://github.com/serafinovsky/fastapi-redis-utils/issues/62)) ([a1bd9e8](https://github.com/serafinovsky/fastapi-redis-utils/commit/a1bd9e8580a6877345b7d9ceec43c8a348abac24))
+
 ## [2.0.14](https://github.com/serafinovsky/fastapi-redis-utils/compare/v2.0.13...v2.0.14) (2026-04-16)
 
 
