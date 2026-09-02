@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.17](https://github.com/serafinovsky/fastapi-redis-utils/compare/v2.0.16...v2.0.17) (2026-09-02)
+
+
+### Bug Fixes
+
+* **deps:** bump the uv group across 1 directory with 3 updates ([#73](https://github.com/serafinovsky/fastapi-redis-utils/issues/73)) ([502bae3](https://github.com/serafinovsky/fastapi-redis-utils/commit/502bae32ee518b3dd8201e7133c084d8c478a887))
+
 ## [2.0.16](https://github.com/serafinovsky/fastapi-redis-utils/compare/v2.0.15...v2.0.16) (2026-09-02)
 
 
